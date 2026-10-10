@@ -6,6 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[package.metadata.cargo-shear]
+# This capture harness is run only in the archived original Heron workspace.
+ignored-paths = ["tests/fixtures/generate_legacy.rs"]
+
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
 
