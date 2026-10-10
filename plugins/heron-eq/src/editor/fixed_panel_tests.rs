@@ -188,7 +188,7 @@ fn verify_node_frames(renderer: &mut Renderer, window: Size) {
             window.height - chrome::TOP_HEIGHT - chrome::BOTTOM_HEIGHT,
         ),
     );
-    let plot = geometry::Plot::new(graph.size(), 12.0);
+    let plot = geometry::Plot::new(graph.size(), 12.0, source.params.telemetry.sample_rate());
     let start = plot.visible_node(initial.frequency_hz as f32, initial.gain_db as f32)
         + Vector::new(graph.x, graph.y);
     let first_pointer = Point::new(start.x + 25.0, start.y - 18.0);

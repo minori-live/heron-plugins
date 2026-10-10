@@ -177,8 +177,21 @@ sidechain measurements, independent of display channel and tilt. Pre is a thin g
 filled trace, and the right dBFS axis is separate from the left EQ-gain axis.
 Response curves, spectrum traces and collision shading stop at the current
 sample rate's Nyquist frequency, including a frozen spectrum captured at a
-higher rate. The fixed 10 Hz–30 kHz axis and saved band-frequency range remain
-unchanged; the area above Nyquist contains no frequency-response evidence.
+higher rate. The logarithmic graph spans 10 Hz to the actual Nyquist frequency,
+with no 30 kHz display cap or mask beyond it: 96 kHz audio reaches 48 kHz and
+192 kHz audio reaches 96 kHz. Analyzer samples and cached FIR response samples
+cover that same range. Grid labels, painting and pointer mapping share the
+current axis. A sample-rate change cancels an active graph pointer gesture so
+that a retained drag cannot continue with a different frequency mapping.
+
+Saved and automated band frequencies retain their existing 1 Hz–30 kHz parameter
+range; manual frequency editing still starts at 10 Hz. Changing the display
+range does not rewrite them. Saved frequencies below 10 Hz retain their existing
+left-edge clamping for drawing and interaction. Nodes whose center frequency
+exceeds the current Nyquist frequency are hidden and excluded from point and
+box selection; their stored settings remain unchanged.
+[ADR 0002](adr/0002-eq-nyquist-display-domain.md) records this display decision
+and its compatibility boundary.
 
 Output L/R balance and M/S balance are separate persisted modes. A real 2x2
 audio matrix smooths changes over 5 ms; true mono leaves that matrix neutral.

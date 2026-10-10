@@ -3,13 +3,13 @@
 use super::*;
 
 pub(super) fn response_path(plot: Plot, sample_rate: f64, response: impl Fn(f64) -> f64) -> Path {
-    let maximum = (sample_rate * 0.5).min(f64::from(super::super::geometry::MAX_HZ));
+    let maximum = sample_rate * 0.5;
     let end_x = plot.frequency_x(maximum as f32);
     Path::new(|builder| {
         for step in 0..=256_u16 {
             let x = plot.bounds.x + f32::from(step) / 256.0 * (end_x - plot.bounds.x);
             // Biquad responses repeat above Nyquist. Never evaluate that part
-            // of the fixed 30 kHz axis, including coordinate rounding at its edge.
+            // of the spectrum, including coordinate rounding at its edge.
             let frequency = f64::from(plot.x_frequency(x)).min(maximum);
             let value = response(frequency);
             if !value.is_finite() {
@@ -95,9 +95,13 @@ mod tests {
 
     #[test]
     fn response_curve_does_not_evaluate_mirrored_frequencies_above_nyquist() {
-        let plot = Plot::new(truce_iced::iced::Size::new(1040.0, 616.0), 12.0);
-        for sample_rate in [32_000.0_f64, 44_100.0, 48_000.0, 96_000.0] {
-            let maximum = (sample_rate * 0.5).min(30_000.0);
+        for sample_rate in [32_000.0_f64, 44_100.0, 48_000.0, 96_000.0, 192_000.0] {
+            let plot = Plot::new(
+                truce_iced::iced::Size::new(1040.0, 616.0),
+                12.0,
+                sample_rate,
+            );
+            let maximum = sample_rate * 0.5;
             let last = std::cell::Cell::new(0.0_f64);
             let path = response_path(plot, sample_rate, |frequency| {
                 assert!(frequency <= maximum, "invalid response at {frequency} Hz");
@@ -110,7 +114,7 @@ mod tests {
             else {
                 panic!("response path has no endpoint");
             };
-            assert!((last.x - plot.frequency_x(maximum as f32)).abs() < 0.001);
+            assert!((last.x - plot.bounds.x - plot.bounds.width).abs() < 0.001);
         }
     }
 

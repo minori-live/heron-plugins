@@ -254,7 +254,7 @@ impl SpectrumAnalyzer {
             self.fft.process_with_scratch(input, &mut self.scratch);
         }
         self.raw.frequency_hz.clear();
-        let max_frequency = (sample_rate as f32 * 0.499).min(30000.0);
+        let max_frequency = sample_rate as f32 * 0.5;
         let elapsed = head.saturating_sub(self.head) as f64 / sample_rate;
         let smoothing = if self.config.speed == AnalyzerSpeed::Off || !self.smoothing_initialized {
             0.0
@@ -262,8 +262,9 @@ impl SpectrumAnalyzer {
             (-elapsed / self.config.speed.seconds()).exp() as f32
         };
         for display in 0..DISPLAY_BINS {
-            let frequency =
-                10.0 * (max_frequency / 10.0).powf(display as f32 / (DISPLAY_BINS - 1) as f32);
+            let frequency = (10.0
+                * (max_frequency / 10.0).powf(display as f32 / (DISPLAY_BINS - 1) as f32))
+            .min(max_frequency);
             self.raw.frequency_hz.push(frequency);
             let powers = self.projected_powers_at(frequency, sample_rate, EqChannel::Stereo);
             self.raw.pre_db[display] = db(powers[0]);
@@ -315,19 +316,25 @@ impl SpectrumAnalyzer {
                 EqChannel::Mid => ((left + right) * 0.5).norm_sqr(),
                 EqChannel::Side => ((left - right) * 0.5).norm_sqr(),
             };
-            power * self.window_gain * self.window_gain
+            // Nyquist is a single real FFT bin; it has no mirrored partner.
+            let gain = if bin == self.fft_size() / 2 {
+                self.window_gain * 0.5
+            } else {
+                self.window_gain
+            };
+            power * gain * gain
         })
     }
 
     fn display_powers_at(&self, frequency: f32, sample_rate: f64, channel: EqChannel) -> [f32; 3] {
         let size = self.fft_size();
         let scale = size as f32 / sample_rate as f32;
-        let max_frequency = (sample_rate as f32 * 0.499).min(30000.0);
+        let max_frequency = sample_rate as f32 * 0.5;
         let half_width = (max_frequency / 10.0).powf(0.5 / (DISPLAY_BINS - 1) as f32);
-        let position = |frequency: f32| (frequency * scale).clamp(0.0, (size / 2 - 1) as f32);
+        let position = |frequency: f32| (frequency * scale).clamp(0.0, (size / 2) as f32);
         let interpolate = |bin: f32| {
             let first = bin.floor() as usize;
-            let last = (first + 1).min(size / 2 - 1);
+            let last = (first + 1).min(size / 2);
             let fraction = bin - first as f32;
             let left = self.fft_bin_powers(first, channel);
             let right = self.fft_bin_powers(last, channel);
@@ -365,9 +372,9 @@ impl SpectrumAnalyzer {
         channel: EqChannel,
     ) -> [f32; 3] {
         let size = self.fft_size();
-        let max_frequency = (sample_rate as f32 * 0.499).min(30000.0);
+        let max_frequency = sample_rate as f32 * 0.5;
         let half_width = (max_frequency / 10.0).powf(0.5 / (DISPLAY_BINS - 1) as f32);
-        let bin = |value: f32| value.clamp(1.0, (size / 2 - 1) as f32) as usize;
+        let bin = |value: f32| value.clamp(1.0, (size / 2) as f32) as usize;
         let nearest = bin((frequency * size as f32 / sample_rate as f32).round());
         let first = bin((frequency / half_width * size as f32 / sample_rate as f32).ceil());
         let last = bin((frequency * half_width * size as f32 / sample_rate as f32).floor());

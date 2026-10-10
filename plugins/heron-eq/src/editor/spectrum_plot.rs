@@ -67,7 +67,7 @@ fn display_points(
     if frequencies.len() != values.len() {
         return Vec::new();
     }
-    let maximum = (spectrum.sample_rate * 0.5).min(30_000.0) as f32;
+    let maximum = (spectrum.sample_rate * 0.5) as f32;
     let mut points = Vec::<Point>::with_capacity(frequencies.len());
     for (&frequency, &value) in frequencies.iter().zip(values) {
         if !(10.0..=maximum).contains(&frequency) || !value.is_finite() {
@@ -132,10 +132,10 @@ mod tests {
 
     #[test]
     fn frozen_spectra_stop_at_the_current_sample_rates_nyquist() {
-        let plot = Plot::new(truce_iced::iced::Size::new(1040.0, 616.0), 12.0);
+        let plot = Plot::new(truce_iced::iced::Size::new(1040.0, 616.0), 12.0, 32_000.0);
         let mut spectrum = SpectrumSnapshot {
             sample_rate: 32_000.0,
-            frequency_hz: vec![10.0, 1000.0, 16_000.0, 20_000.0, 30_000.0],
+            frequency_hz: vec![10.0, 1000.0, 16_000.0, 40_000.0, 48_000.0],
             ..SpectrumSnapshot::default()
         };
         let values = [-60.0, -30.0, -20.0, -10.0, -5.0];
@@ -143,9 +143,14 @@ mod tests {
         assert_eq!(points.len(), 3);
         assert_eq!(points.last().unwrap().x, plot.frequency_x(16_000.0));
         spectrum.sample_rate = 96_000.0;
+        let plot = Plot::new(
+            truce_iced::iced::Size::new(1040.0, 616.0),
+            12.0,
+            spectrum.sample_rate,
+        );
         let points = display_points(plot, &spectrum, &values, -120.0);
         assert_eq!(points.len(), values.len());
-        assert_eq!(points.last().unwrap().x, plot.frequency_x(30_000.0));
+        assert_eq!(points.last().unwrap().x, plot.bounds.x + plot.bounds.width);
     }
 
     #[test]

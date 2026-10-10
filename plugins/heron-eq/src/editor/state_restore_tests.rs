@@ -208,7 +208,7 @@ fn shift_node_drag_preserves_the_selected_group_and_gain_while_shift_click_toggl
     );
     let original = ui.model.borrow().config.clone();
     let bounds = Rectangle::new(Point::ORIGIN, Size::new(1000.0, 600.0));
-    let plot = geometry::Plot::new(bounds.size(), 12.0);
+    let plot = geometry::Plot::new(bounds.size(), 12.0, source.params.telemetry.sample_rate());
     let start = plot.visible_node(
         original.bands[0].frequency_hz as f32,
         original.bands[0].gain_db as f32,

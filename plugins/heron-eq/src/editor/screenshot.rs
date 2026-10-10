@@ -9,8 +9,6 @@ use truce_iced::iced::{Point, widget::canvas::Text};
 
 #[path = "screenshot_layout.rs"]
 mod layout_check;
-#[path = "screenshot_nyquist.rs"]
-mod nyquist;
 
 #[derive(Clone, serde::Serialize)]
 pub(super) struct NodeLabelBounds {
