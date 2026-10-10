@@ -29,8 +29,13 @@ checked again after cargo-truce's internal builds. Dirty development builds are
 smoke evidence and cannot be published as source-pinned releases.
 Deployment target is macOS 14.2 and target CPU is baseline. Metadata stamping,
 license insertion, universal linking and all executable changes happen before
-signing. Symbols are generated from each final linked Mach-O executable, because
-its UUID can differ from the original Cargo dylib.
+signing. VST3 symbols are generated from each final linked MH_BUNDLE, because its
+UUID differs from the original Cargo dylib. AU symbols preserve Cargo's packed
+DWARF: packaging only copies/lipos those dylibs, and every original slice must
+match the final module UUID before merging. No UUID/address rewriting is allowed.
+Both formats must resolve the actual final process-function address to an owned
+Rust source line on each architecture, including EQ's `processor.rs`. A matching
+UUID or generic debug-information flag alone cannot establish completeness.
 
 After archiving, the runtime ZIP is unpacked and verified. Every VST3 bundle's
 actual factory must expose the expected fixed class ID. All four AU components

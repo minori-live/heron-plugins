@@ -25,6 +25,7 @@
     "oxfmt": "0.72.0",
     "oxlint": "1.87.0",
     "typescript": "npm:@typescript/typescript6@6.0.2",
+    "unzipper": "0.12.5",
     "yazl": "3.3.1"
   }
 }

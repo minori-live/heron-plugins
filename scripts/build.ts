@@ -1,6 +1,6 @@
 import { cp, mkdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { archiveTree } from "./archive.ts"
+import { archiveTree, extractTree } from "./archive.ts"
 import {
   assetName,
   bundleName,
@@ -146,7 +146,7 @@ if (import.meta.main) {
     const unpacked = join(target, "archive-check", platform, format)
     await rm(unpacked, { recursive: true, force: true })
     await mkdir(unpacked, { recursive: true })
-    run("tar", ["-xf", output, "-C", unpacked])
+    await extractTree(output, unpacked)
     if (platform === "macos-universal")
       for (const plugin of plugins)
         run("codesign", [

@@ -60,7 +60,7 @@ run = ["pnpm lint", "cargo clippy --workspace --all-targets --locked -- -D warni
 
 [tasks."ci:coverage"]
 depends = ["install"]
-run = "cargo llvm-cov --workspace --locked --lcov --output-path coverage/rust/lcov.info"
+run = "node scripts/coverage.ts"
 
 [tasks."ci:report:sccache"]
 run = "node scripts/ci-sccache-report.ts"

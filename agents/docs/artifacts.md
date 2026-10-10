@@ -52,6 +52,13 @@ universal DWARF file has separate records for its `x64` and `arm64` slices.
 Source bundles are associated with these debug IDs and archived under
 `symbols/`. Final binary/debug IDs and full debug information are checked
 offline before archiving; a format's symbols never include another format.
+For macOS VST3, DWARF is generated from the final linked MH_BUNDLE. AU packaging
+copies/lipos Cargo dylibs, so it merges their original complete packed DWARF only
+after each slice's UUID matches the final AU module. Neither UUIDs nor addresses
+are rewritten. Every final plug-in process function address must resolve to a
+positive line in its owned Rust source on both architectures; EQ additionally
+requires `processor.rs`. This rejects partial dSYMs that retain a matching UUID
+but have lost Rust compilation units after intermediate objects are removed.
 
 Heron locks only the four VST3 runtimes and corresponding VST3 symbol assets,
 including full SHA-256 digests and source commit. It verifies the download before

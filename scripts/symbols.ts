@@ -1,10 +1,11 @@
 import { cp, mkdir, readdir, writeFile, readFile } from "node:fs/promises"
 import { basename, join, relative } from "node:path"
 import { run, root, target } from "./process.ts"
-import { plugins, bundleName, type Format, type Platform } from "./catalog.ts"
+import { plugins, bundleName, type Format, type Platform, type Plugin } from "./catalog.ts"
 import { machoFiles } from "./sign.ts"
 import { sanitizeSdkSources } from "./source-bundles.ts"
 import { aaxConfig } from "./aax.ts"
+import { verifyMacRustSourceLines } from "./mac-symbol-validation.ts"
 
 interface DebugInfo {
   variants: { debug_id: string; arch: string }[]
@@ -39,6 +40,43 @@ function arch(value: string): "x64" | "arm64" {
   if (value === "x86_64" || value === "amd64") return "x64"
   if (value === "arm64" || value === "aarch64") return "arm64"
   throw new Error(`Unexpected native architecture ${value}`)
+}
+
+async function mergePackedAuSymbols(binary: string, dsym: string, plugin: Plugin): Promise<string> {
+  const executable = debugInfo(binary)
+  const name = `lib${plugin.crate.replaceAll("-", "_")}.dylib`
+  const inputs: string[] = []
+  for (const [triple, architecture] of [
+    ["aarch64-apple-darwin", "arm64"],
+    ["x86_64-apple-darwin", "x64"]
+  ] as const) {
+    const packed = join(target, triple, "release/deps", `${name}.dSYM`)
+    const dwarf = join(packed, "Contents/Resources/DWARF", name)
+    const symbols = debugInfo(dwarf)
+    const slice = symbols.variants[0]
+    if (
+      symbols.variants.length !== 1 ||
+      !slice ||
+      arch(slice.arch) !== architecture ||
+      !symbols.is_usable ||
+      !symbols.features.includes("debug") ||
+      !executable.variants.some(
+        (entry) => entry.debug_id === slice.debug_id && arch(entry.arch) === architecture
+      )
+    )
+      throw new Error(`Original packed AU symbols do not match the final module: ${dwarf}`)
+    if (inputs.length === 0) {
+      await mkdir(join(dsym, "Contents/Resources/DWARF"), { recursive: true })
+      await cp(join(packed, "Contents/Info.plist"), join(dsym, "Contents/Info.plist"))
+    }
+    inputs.push(dwarf)
+  }
+  const output = join(dsym, "Contents/Resources/DWARF", basename(binary))
+  // AU packaging only copies/lipos the original dylibs. Preserve their complete packed
+  // DWARF before stale object files make a later dsymutil run silently lose Rust units.
+  // No UUID or address rewriting is permitted; the final-address probe checks both slices.
+  run("lipo", ["-create", ...inputs, "-output", output])
+  return output
 }
 
 export async function stageSymbols(
@@ -90,8 +128,11 @@ export async function stageSymbols(
       let debugFile: string
       if (platform === "macos-universal") {
         const dsym = join(symbolDir, `${basename(binary)}.dSYM`)
-        run("dsymutil", [binary, "-o", dsym])
-        debugFile = join(dsym, "Contents/Resources/DWARF", basename(binary))
+        if (format === "au2") debugFile = await mergePackedAuSymbols(binary, dsym, plugin)
+        else {
+          run("dsymutil", [binary, "-o", dsym])
+          debugFile = join(dsym, "Contents/Resources/DWARF", basename(binary))
+        }
       } else if (platform === "windows-x64") {
         const stem = plugin.crate.replaceAll("-", "_")
         const wrapper = format === "aax" && binary.endsWith(".aaxplugin")
@@ -110,6 +151,8 @@ export async function stageSymbols(
       const symbols = debugInfo(debugFile)
       if (!symbols.is_usable || !symbols.features.includes("debug"))
         throw new Error(`Missing full debug information for ${binary}`)
+      if (platform === "macos-universal" && (format !== "aax" || binary.endsWith(".dylib")))
+        verifyMacRustSourceLines(binary, debugFile, plugin)
       for (const slice of executable.variants) {
         const match = symbols.variants.find(
           (entry) => entry.debug_id === slice.debug_id && arch(entry.arch) === arch(slice.arch)
