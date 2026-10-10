@@ -25,6 +25,9 @@ upgrades it with application updates.
 ## Development
 
 Use a login shell and the locked `mise` toolchain. On Windows, use PowerShell 7.
+Follow [the development environment](agents/docs/environment.md) for platform
+prerequisites and [the engineering and testing standards](agents/docs/README.md)
+for implementation and review. The suite maintains these rules locally.
 
 ```sh
 mise install
