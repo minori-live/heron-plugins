@@ -106,8 +106,8 @@ newer credential-only workflow does not change that tag's credential handling.
 
 Synchronize VERSION/package/Cargo metadata and Cargo.lock before creating
 `v<VERSION>`. The tag must match VERSION. Release runs Test and signed Build,
-requires the exact asset set, writes SHA256SUMS, creates public GitHub artifact
-attestations and creates/updates a draft release. An already published release
+requires the exact asset set, creates public GitHub artifact attestations and
+creates/updates a draft release. An already published release
 is never overwritten. Review native/manual validation evidence and publish the
 draft explicitly.
 GitHub Immutable Releases is enabled for this repository, so publishing locks
@@ -128,11 +128,12 @@ The serialized job checks out the coordinator from producer main and the
 consumer from trusted Heron main. Heron main must already contain the artifact
 consumer and an initialized release lock; otherwise the job fails with a
 bootstrap instruction. It never runs scripts from an upgrade branch. The job
-reuses Heron's `pnpm plugins:update --latest` for full release/commit/checksum
-validation, followed by `plugins:prepare` for the actual Linux x64 runtime and
-symbol archives. An existing pending branch's lock participates in downgrade and
-same-version immutability checks. PR CI covers the remaining platforms and native
-integration.
+reuses Heron's `pnpm plugins:update --latest` to resolve the stable release,
+source commit and filenames, followed by `plugins:prepare` for the actual Linux
+x64 runtime and symbol archives. Preparation validates the manifests, complete
+bundle set, binary architecture and matching Debug IDs. An existing pending
+branch's lock participates in downgrade and same-version source/filename checks.
+PR CI covers the remaining platforms and native integration.
 
 The job maintains one rolling `dsh0416/update-heron-plugins` branch and PR. It
 refuses unrelated pending edits, checks main/branch freshness, and updates with
@@ -153,7 +154,7 @@ workflow on producer main before publishing releases that should trigger it.
 ## AAX activation
 
 `release-config.json` keeps `aax.enabled=false`. Enabling it requires a separate
-review with the accepted compatible SDK version and SHA-256, redistribution
+review with the accepted compatible SDK version, redistribution
 terms, PACE tools/cloud authorization and Avid developer-validator access.
 Do not redistribute the licensed SDK archive or confidential SDK source.
 The pinned Truce AAX descriptor hardcodes `version=1`; preflight rejects
@@ -164,9 +165,9 @@ AAX release readiness.
 The SDK must include Interfaces/AAX.h and
 Extensions/Topology/AAX_CMonolithicParameters.cpp, not just a partial interfaces
 snapshot. Set `AAX_SDK_ARCHIVE` or authorized `AAX_SDK_URL`/`AAX_SDK_TOKEN`, and
-`AAX_SDK_LICENSE_ACCEPTED=true`. The downloader checks the pinned archive digest,
-rejects unsafe archive paths, clears old extraction output and rejects missing
-SDK files. Configure Avid's full DigiShell validator in `AAX_VALIDATOR`.
+`AAX_SDK_LICENSE_ACCEPTED=true`. The downloader rejects unsafe archive paths,
+clears old extraction output and rejects missing SDK files. Configure Avid's full
+DigiShell validator in `AAX_VALIDATOR`.
 
 Mac/Windows AAX builds contain two actual modules per plug-in: the C++ wrapper
 and the Rust sidecar. Both need matching full debug files; macOS needs both

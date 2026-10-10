@@ -25,23 +25,30 @@ versions and download artifacts. The checked-in tools are:
 | cargo-truce 6.3                             | Build and package the pinned Truce plug-in formats      |
 | cargo-llvm-cov 0.8                          | Collect Rust coverage                                   |
 | cargo-shear 1.13                            | Audit owned Rust dependency use                         |
+| APM 0.33.0                                  | Resolve and deploy reusable agent skills                |
 
 The lock currently resolves Node.js 26.11.1, pnpm 12.10.0 and Rust 1.99.0;
 `Cargo.toml` declares edition 2024 and a minimum Rust version of 1.98. The files,
-not this version snapshot, are authoritative after a toolchain update. This
-producer does not currently configure APM or an APM installation task.
+not this version snapshot, are authoritative after a toolchain update.
 
 From the repository root, install the locked tools and JavaScript dependencies:
 
 ```sh
 mise install --locked
 mise run install
+apm install --frozen
 ```
 
 `pnpm-lock.yaml` separately locks the JavaScript dependencies. `mise run install`
 uses `pnpm install --frozen-lockfile --prefer-offline`. Build, format, lint,
 coverage and full-check mise tasks depend on this installation task. The
 Rust-only `check-fast` task does not install pnpm dependencies.
+
+`apm.yml` declares the agent skill dependencies and `apm.lock.yaml` pins their
+resolution. `apm install --frozen` restores the APM-managed skills under
+`.agents/skills/`; update those declarations and the lockfile rather than editing
+installed copies. The installed `stss` skill tightens defensive prose while
+preserving facts and meaningful limits.
 
 ## Shell and command conventions
 

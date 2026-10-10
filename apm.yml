@@ -1,0 +1,11 @@
+name: heron-plugins
+version: 1.0.0
+description: Agent skill dependencies for Heron Plugins
+author: Delton Ding
+targets:
+  - agent-skills
+dependencies:
+  apm:
+    - lennney/stop-that-shit/skills/stss#694bbd59e26b522cd63801a01590ccaa77c7fe84
+includes: auto
+scripts: {}

@@ -3,11 +3,9 @@ import assert from "node:assert/strict"
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { createHash } from "node:crypto"
 import { archiveTree, safeSymlink } from "./archive.ts"
 import { auVersion } from "./version.ts"
 import { manifestPlugins, assetName } from "./catalog.ts"
-import { verifySdkDigest } from "./aax.ts"
 import { omitSdkSources } from "./source-bundles.ts"
 import { unzipSync } from "fflate"
 
@@ -41,15 +39,6 @@ test("AU component version changes with the suite version and rejects overflow",
   assert.equal(auVersion("1.2.3-rc.1"), 66051)
   assert.throws(() => auVersion("1.256.0"))
   assert.throws(() => auVersion("1.0.256"))
-})
-
-test("AAX SDK content must match the accepted pinned archive", () => {
-  const bytes = Buffer.from("licensed SDK archive")
-  verifySdkDigest(bytes, createHash("sha256").update(bytes).digest("hex"))
-  assert.throws(() =>
-    verifySdkDigest(Buffer.from("changed"), createHash("sha256").update(bytes).digest("hex"))
-  )
-  assert.throws(() => verifySdkDigest(bytes, "not-a-checksum"))
 })
 
 test("published source bundles omit confidential SDK content and its manifest entries", async () => {

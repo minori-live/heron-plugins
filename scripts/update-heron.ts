@@ -82,7 +82,7 @@ async function remoteCommit(command: UpdateCommand, ref: string): Promise<string
 function pullBody(version: string, sourceCommit: string): string {
   return `Update the bundled VST3 suite to [Heron Plugins ${version}](https://github.com/minori-live/heron-plugins/releases/tag/v${version}), produced from commit \`${sourceCommit}\`.
 
-The lock pins the source commit and SHA-256 checksums for all four platform runtimes and matching crash symbols. Heron's own updater validates the stable release and prevents downgrades or changes to an already pinned version, including a pending upgrade.
+The lock records the suite version, source commit and release files for macOS universal, Windows x64, Linux x64 and Linux arm64, including matching crash symbols.
 
 The producer verified the actual Linux x64 runtime and symbol archives using Heron's artifact consumer. Normal Heron pull-request CI verifies native integration and packaging across the supported platforms. Merge this PR manually to deliver the suite with a future Heron application release.
 `
