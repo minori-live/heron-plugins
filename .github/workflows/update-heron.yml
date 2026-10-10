@@ -1,0 +1,75 @@
+name: Maintain the Heron plug-in upgrade PR
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Optional stable version; leave empty to resolve the latest published release
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-heron-plugins
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.repository == 'minori-live/heron-plugins' && (github.event_name == 'workflow_dispatch' || !github.event.release.prerelease)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Require the producer's scoped synchronization token
+        env:
+          GH_TOKEN: ${{ secrets.HERON_PLUGINS_SYNC_TOKEN }}
+        run: |
+          test -n "$GH_TOKEN" || {
+            echo '::error::Configure HERON_PLUGINS_SYNC_TOKEN only in heron-plugins, with Heron contents and pull-request write permissions.'
+            exit 1
+          }
+      - name: Check out the trusted producer coordinator
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          path: producer
+          persist-credentials: false
+      - name: Check out trusted Heron main
+        uses: actions/checkout@v7
+        with:
+          repository: minori-live/heron
+          ref: main
+          path: heron
+          fetch-depth: 0
+          token: ${{ secrets.HERON_PLUGINS_SYNC_TOKEN }}
+          persist-credentials: false
+      - name: Require the consumer migration on Heron main
+        working-directory: heron
+        run: |
+          if ! test -f scripts/plugins-update.ts || ! test -f scripts/plugins-prepare.ts || \
+            ! test -f heron-plugins.lock.json || \
+            ! jq -e '.release != null' heron-plugins.lock.json > /dev/null; then
+            echo '::error::Heron main is not bootstrapped with the artifact consumer and an initialized plug-in lock. Merge the migration and pin its first stable release, then retry this workflow manually. The published plug-in release remains available.'
+            exit 1
+          fi
+      - name: Install the locked Heron JavaScript toolchain
+        uses: jdx/mise-action@v5.1.1
+        with:
+          version: 2026.10.6
+          working_directory: heron
+          install_args: node pnpm
+      - name: Install trusted consumer dependencies
+        working-directory: heron
+        run: mise exec -- pnpm install --frozen-lockfile --prefer-offline
+      - name: Validate the stable release and maintain one upgrade PR
+        working-directory: heron
+        env:
+          GH_TOKEN: ${{ secrets.HERON_PLUGINS_SYNC_TOKEN }}
+          PLUGIN_VERSION: ${{ inputs.version }}
+        run: mise exec -- node ../producer/scripts/update-heron.ts --workspace .
