@@ -175,6 +175,10 @@ segments round the displayed trace without inventing extrema. The display uses
 only this instance's captured audio. Match and collision detection use its raw
 sidechain measurements, independent of display channel and tilt. Pre is a thin gray trace, Post has a light
 filled trace, and the right dBFS axis is separate from the left EQ-gain axis.
+Response curves, spectrum traces and collision shading stop at the current
+sample rate's Nyquist frequency, including a frozen spectrum captured at a
+higher rate. The fixed 10 Hz–30 kHz axis and saved band-frequency range remain
+unchanged; the area above Nyquist contains no frequency-response evidence.
 
 Output L/R balance and M/S balance are separate persisted modes. A real 2x2
 audio matrix smooths changes over 5 ms; true mono leaves that matrix neutral.

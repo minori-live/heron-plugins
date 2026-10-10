@@ -102,7 +102,7 @@ impl Graph {
         spectrum_plot::draw(
             frame,
             plot,
-            &self.spectrum.frequency_hz,
+            &self.spectrum,
             values,
             self.floor_db,
             appearance,
@@ -149,7 +149,7 @@ impl Graph {
                 .iter()
                 .find(|scaled| scaled.id == band.id)
                 .unwrap_or(band);
-            let line = response_path(plot, |frequency| {
+            let line = response_path(plot, self.spectrum.sample_rate, |frequency| {
                 scaled.magnitude_db(self.spectrum.sample_rate, frequency)
             });
             let selected = self.selected.contains(&band.id);
@@ -174,8 +174,11 @@ impl Graph {
                 self.show_total_response,
             )
         };
-        let line = response(1000.0)
-            .map(|_| response_path(plot, |frequency| response(frequency).unwrap_or(f64::NAN)));
+        let line = response(1000.0).map(|_| {
+            response_path(plot, self.spectrum.sample_rate, |frequency| {
+                response(frequency).unwrap_or(f64::NAN)
+            })
+        });
         if let Some(line) = line {
             frame.stroke(
                 &line,
@@ -247,11 +250,15 @@ impl Graph {
                     self.spectrum.frequency_hz.get(index),
                     self.spectrum.frequency_hz.get(index + 1),
                 ) {
+                    let maximum = (self.spectrum.sample_rate * 0.5).min(30_000.0) as f32;
+                    if frequency >= maximum {
+                        continue;
+                    }
                     let x = plot.frequency_x(frequency);
                     frame.fill_rectangle(
                         Point::new(x, plot.bounds.y),
                         truce_iced::iced::Size::new(
-                            (plot.frequency_x(next) - x).max(1.0),
+                            (plot.frequency_x(next.min(maximum)) - x).max(0.0),
                             plot.bounds.height,
                         ),
                         alpha(colors.warning, 0.07),
@@ -334,7 +341,7 @@ impl Graph {
                 alignment::Horizontal::Center,
             );
         }
-        let maximum = self.spectrum.sample_rate * 0.499;
+        let maximum = self.spectrum.sample_rate * 0.5;
         if maximum < 30_000.0 {
             let x = plot.frequency_x(maximum as f32);
             frame.fill_rectangle(
