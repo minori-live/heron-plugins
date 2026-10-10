@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto"
 import {
   cp,
   mkdir,
@@ -19,7 +18,6 @@ import { bundleName, plugins } from "./catalog.ts"
 export interface AaxConfig {
   enabled: boolean
   sdkVersion: string | null
-  sdkSha256: string | null
   publishSdkSources: boolean
 }
 export async function aaxConfig(): Promise<AaxConfig> {
@@ -30,14 +28,6 @@ export async function aaxConfig(): Promise<AaxConfig> {
 }
 export async function aaxEnabled() {
   return (await aaxConfig()).enabled
-}
-
-export function verifySdkDigest(bytes: Buffer, expected: string) {
-  if (
-    !/^[a-f0-9]{64}$/.test(expected) ||
-    createHash("sha256").update(bytes).digest("hex") !== expected
-  )
-    throw new Error("AAX SDK archive checksum mismatch")
 }
 
 async function sdkRoot(directory: string): Promise<string> {
@@ -62,8 +52,7 @@ async function sdkRoot(directory: string): Promise<string> {
 export async function prepareAax(release: boolean) {
   const config = await aaxConfig()
   if (!config.enabled) throw new Error("AAX is disabled")
-  if (!config.sdkVersion || !config.sdkSha256)
-    throw new Error("Pin the accepted AAX SDK version and SHA-256 before enabling AAX")
+  if (!config.sdkVersion) throw new Error("Pin the accepted AAX SDK version before enabling AAX")
   const metadata = JSON.parse(
     run("cargo", ["metadata", "--locked", "--format-version", "1"], { capture: true })
   ) as { packages: { name: string; manifest_path: string }[] }
@@ -91,7 +80,6 @@ export async function prepareAax(release: boolean) {
     if (!response.ok) throw new Error(`AAX SDK download failed (${response.status})`)
     bytes = Buffer.from(await response.arrayBuffer())
   }
-  verifySdkDigest(bytes, config.sdkSha256)
   await writeFile(archive, bytes)
   const entries = run("tar", ["-tf", archive], { capture: true }).trim().split("\n")
   if (

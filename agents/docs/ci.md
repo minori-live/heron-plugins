@@ -71,26 +71,43 @@ Configure these repository secrets before a signed tag release:
 | -------------------------- | --------------------------------------------------------------- |
 | `MAC_CSC_LINK`             | Base64 Developer ID Application PKCS#12 certificate/private key |
 | `MAC_CSC_KEY_PASSWORD`     | PKCS#12 password                                                |
-| `APPLE_API_KEY_P8`         | Base64 App Store Connect API private key                        |
+| `APPLE_API_KEY_P8`         | Complete App Store Connect `.p8` PEM private key or its Base64  |
 | `APPLE_API_KEY_ID`         | API key ID                                                      |
 | `APPLE_API_ISSUER`         | API issuer ID                                                   |
 | `CODECOV_TOKEN`            | Coverage token, when needed by repository visibility/settings   |
 | `HERON_PLUGINS_SYNC_TOKEN` | Producer-only scoped token for Heron upgrade branches and PRs   |
 
+The API key must be a complete, unencrypted PKCS#8 EC private key, including
+`BEGIN PRIVATE KEY` and `END PRIVATE KEY` lines. Raw PEM and strict standard
+Base64 of that complete PEM are accepted; line endings are normalized. Partial
+PEM, encrypted keys, another key type and malformed Base64 fail before keychain
+mutation or compilation. The log identifies only `PEM` or `Base64`, never key
+contents or detailed parser errors.
+
 Apple credentials are imported into a temporary keychain and removed in an
-always-run cleanup step. The pipeline requires a valid Developer ID Application
+always-run cleanup step. Before compiling, `notarytool store-credentials`
+validates the key, key ID and issuer using the `heron-plugins-release` profile
+in that temporary keychain. Authentication errors produce a fixed diagnostic;
+submissions continue to use the private-key file directly. The pipeline requires a valid Developer ID Application
 identity, accepted notarization, verified bundle seals and stapled DMG. Missing
 credentials fail the release; ad-hoc development builds stay available.
 No plugin-side Sentry DSN, organization/project, upload token or runtime capture
 is configured in this release. The local Sentry CLI only checks debug files and
 generates source bundles; it does not make telemetry or upload requests.
 
+To troubleshoot credentials before a full build, manually dispatch Build with
+`validate_apple_credentials` enabled. This mode runs the same normalization,
+certificate import and authentication preflight, then cleans up; it does not
+package or publish artifacts. The original `v0.6.4` tag at `9b8c303` predates
+raw-PEM support and still requires Base64 of the complete PEM. Success with a
+newer credential-only workflow does not change that tag's credential handling.
+
 ## Publishing and synchronization
 
 Synchronize VERSION/package/Cargo metadata and Cargo.lock before creating
 `v<VERSION>`. The tag must match VERSION. Release runs Test and signed Build,
-requires the exact asset set, writes SHA256SUMS, creates public GitHub artifact
-attestations and creates/updates a draft release. An already published release
+requires the exact asset set, creates public GitHub artifact attestations and
+creates/updates a draft release. An already published release
 is never overwritten. Review native/manual validation evidence and publish the
 draft explicitly.
 GitHub Immutable Releases is enabled for this repository, so publishing locks
@@ -111,11 +128,12 @@ The serialized job checks out the coordinator from producer main and the
 consumer from trusted Heron main. Heron main must already contain the artifact
 consumer and an initialized release lock; otherwise the job fails with a
 bootstrap instruction. It never runs scripts from an upgrade branch. The job
-reuses Heron's `pnpm plugins:update --latest` for full release/commit/checksum
-validation, followed by `plugins:prepare` for the actual Linux x64 runtime and
-symbol archives. An existing pending branch's lock participates in downgrade and
-same-version immutability checks. PR CI covers the remaining platforms and native
-integration.
+reuses Heron's `pnpm plugins:update --latest` to resolve the stable release,
+source commit and filenames, followed by `plugins:prepare` for the actual Linux
+x64 runtime and symbol archives. Preparation validates the manifests, complete
+bundle set, binary architecture and matching Debug IDs. An existing pending
+branch's lock participates in downgrade and same-version source/filename checks.
+PR CI covers the remaining platforms and native integration.
 
 The job maintains one rolling `dsh0416/update-heron-plugins` branch and PR. It
 refuses unrelated pending edits, checks main/branch freshness, and updates with
@@ -136,7 +154,7 @@ workflow on producer main before publishing releases that should trigger it.
 ## AAX activation
 
 `release-config.json` keeps `aax.enabled=false`. Enabling it requires a separate
-review with the accepted compatible SDK version and SHA-256, redistribution
+review with the accepted compatible SDK version, redistribution
 terms, PACE tools/cloud authorization and Avid developer-validator access.
 Do not redistribute the licensed SDK archive or confidential SDK source.
 The pinned Truce AAX descriptor hardcodes `version=1`; preflight rejects
@@ -147,9 +165,9 @@ AAX release readiness.
 The SDK must include Interfaces/AAX.h and
 Extensions/Topology/AAX_CMonolithicParameters.cpp, not just a partial interfaces
 snapshot. Set `AAX_SDK_ARCHIVE` or authorized `AAX_SDK_URL`/`AAX_SDK_TOKEN`, and
-`AAX_SDK_LICENSE_ACCEPTED=true`. The downloader checks the pinned archive digest,
-rejects unsafe archive paths, clears old extraction output and rejects missing
-SDK files. Configure Avid's full DigiShell validator in `AAX_VALIDATOR`.
+`AAX_SDK_LICENSE_ACCEPTED=true`. The downloader rejects unsafe archive paths,
+clears old extraction output and rejects missing SDK files. Configure Avid's full
+DigiShell validator in `AAX_VALIDATOR`.
 
 Mac/Windows AAX builds contain two actual modules per plug-in: the C++ wrapper
 and the Rust sidecar. Both need matching full debug files; macOS needs both

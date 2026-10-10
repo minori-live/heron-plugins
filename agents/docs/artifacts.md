@@ -2,8 +2,9 @@
 
 One suite version identifies all four plug-ins. The public producer repository
 is `minori-live/heron-plugins`; a published release tag is `v<VERSION>`. Published
-assets are immutable. A release has ten ZIP files, one macOS DMG and SHA256SUMS
-while AAX is disabled.
+assets are immutable. A release has ten ZIP files and one macOS DMG while AAX is
+disabled. The publisher requires this exact asset set and creates GitHub artifact
+attestations for it.
 
 Platform IDs are `windows-x64`, `linux-x64`, `linux-arm64` and
 `macos-universal`. Runtime assets are
@@ -61,7 +62,17 @@ requires `processor.rs`. This rejects partial dSYMs that retain a matching UUID
 but have lost Rust compilation units after intermediate objects are removed.
 
 Heron locks only the four VST3 runtimes and corresponding VST3 symbol assets,
-including full SHA-256 digests and source commit. It verifies the download before
-staging complete bundles, never rebuilding plugin source. Its release pipeline
-uploads these symbols using Heron's own project credentials. AU/AAX downloads
-serve other DAWs and remain outside Heron's built-in dependency lock.
+recording the suite version, full source commit and eight asset filenames. The
+consumer resolves the tag's commit and requires a published stable release with
+all eight files. Updates reject downgrades and changes to the source commit or
+asset names of an already pinned version, including pending upgrades.
+
+Heron caches downloads by version, platform and filename. It validates archive
+paths, manifests, complete bundle contents and actual executable architectures
+before staging. Matching symbols must carry the final modules' Debug IDs for
+every architecture. Real VST3 probes verify the exported identities and loading
+behavior; catalog metadata alone does not establish host compatibility. Heron
+stages complete released bundles and uploads their matching symbols using its
+own project credentials. AU/AAX downloads serve other DAWs and remain outside
+Heron's built-in dependency lock. See
+[ADR 0002](adr/0002-release-artifact-pinning.md) for the pinning decision.

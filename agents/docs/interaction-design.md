@@ -125,7 +125,7 @@ linear dB axis. The saved and automated band-frequency range remains 1 Hz–30 k
 manual frequency editing still starts at 10 Hz. Saved frequencies below 10 Hz
 retain the existing left-edge clamping for drawing and interaction. Display
 range changes do not rewrite stored settings. The right spectrum dBFS axis is
-separate from the left EQ-gain axis. [ADR 0002](adr/0002-eq-nyquist-display-domain.md)
+separate from the left EQ-gain axis. [ADR 0003](adr/0003-eq-nyquist-display-domain.md)
 records the graph-domain decision.
 
 Measured Pre/Post belong to this instance's input/output; External and Match

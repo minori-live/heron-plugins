@@ -9,7 +9,8 @@ linked from the [documentation index](../README.md).
 | Record                                                                          | Status   | Scope                                                                                              |
 | ------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
 | [0001 — Independent plugin suite releases](0001-independent-plugin-releases.md) | Accepted | Source ownership, compatibility, formats, immutable artifacts and producer-owned Heron upgrade PRs |
-| [0002 — EQ Nyquist display domain](0002-eq-nyquist-display-domain.md)           | Accepted | Sample-rate-dependent graph range, display data and pointer mapping                                |
+| [0002 — Release artifact pinning](0002-release-artifact-pinning.md)             | Accepted | Version/commit/filename locks, release assets and consumer validation                              |
+| [0003 — EQ Nyquist display domain](0003-eq-nyquist-display-domain.md)           | Accepted | Sample-rate-dependent graph range, display data and pointer mapping                                |
 
 Accepted means the decision is chosen. It does not claim that all formats,
 implementation work or manual host acceptance are complete. Proposed decisions
@@ -28,7 +29,7 @@ Prefer one cohesive decision over a record for each implementation step.
 
 ## Lifecycle and review
 
-Use four digits and a short kebab-case title; the next local record is **0003**.
+Use four digits and a short kebab-case title; the next local record is **0004**.
 Copy [the template](template.md). Status is Proposed, Accepted, Superseded by
 ADR-NNNN or Rejected. Accepted records change only for editorial corrections,
 links and explicit implementation-scope clarification. A changed decision

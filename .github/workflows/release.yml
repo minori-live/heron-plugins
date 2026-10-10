@@ -55,7 +55,7 @@ jobs:
           pattern: bundles-*
           path: release-assets
           merge-multiple: true
-      - name: Verify complete release assets and generate SHA-256 checksums
+      - name: Verify complete release assets
         id: assets
         run: mise exec -- node scripts/release-assets.ts release-assets
       - name: Attest release artifacts
@@ -76,7 +76,7 @@ jobs:
             test "$existing_is_draft" = true || { echo '::error::Published releases are immutable'; exit 1; }
             while IFS= read -r asset; do
               if ! jq -e --arg name "$asset" 'index($name) != null' <<< "$EXPECTED_ASSET_NAMES" >/dev/null; then
-                if [[ "$asset" =~ ^heron-plugins-.*\.(zip|dmg)$ ]]; then
+                if [[ "$asset" =~ ^heron-plugins-.*\.(zip|dmg)$ || "$asset" == SHA256SUMS ]]; then
                   gh release delete-asset "$tag" "$asset" --yes
                 else
                   echo "::error::Unexpected manual draft asset: $asset"

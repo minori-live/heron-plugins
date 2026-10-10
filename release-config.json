@@ -2,7 +2,6 @@
   "aax": {
     "enabled": false,
     "sdkVersion": null,
-    "sdkSha256": null,
     "publishSdkSources": false
   }
 }

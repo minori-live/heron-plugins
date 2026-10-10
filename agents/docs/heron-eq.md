@@ -190,7 +190,7 @@ range does not rewrite them. Saved frequencies below 10 Hz retain their existing
 left-edge clamping for drawing and interaction. Nodes whose center frequency
 exceeds the current Nyquist frequency are hidden and excluded from point and
 box selection; their stored settings remain unchanged.
-[ADR 0002](adr/0002-eq-nyquist-display-domain.md) records this display decision
+[ADR 0003](adr/0003-eq-nyquist-display-domain.md) records this display decision
 and its compatibility boundary.
 
 Output L/R balance and M/S balance are separate persisted modes. A real 2x2

@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto"
-import { appendFile, lstat, readFile, readdir, writeFile } from "node:fs/promises"
+import { appendFile, lstat, readdir } from "node:fs/promises"
 import { join } from "node:path"
 import { assetName, platforms, type Format } from "./catalog.ts"
 import { aaxEnabled } from "./aax.ts"
@@ -24,21 +23,14 @@ if (import.meta.main) {
     throw new Error(
       `Incomplete release asset set: expected ${expected.join(", ")}; got ${actual.join(", ")}`
     )
-  const checksums: string[] = []
   for (const name of expected) {
     const path = join(directory, name)
     if (!(await lstat(path)).isFile())
       throw new Error(`Release asset is not a regular file: ${name}`)
-    checksums.push(
-      `${createHash("sha256")
-        .update(await readFile(path))
-        .digest("hex")}  ${name}`
-    )
   }
-  await writeFile(join(directory, "SHA256SUMS"), `${checksums.join("\n")}\n`)
   if (process.env.GITHUB_OUTPUT)
     await appendFile(
       process.env.GITHUB_OUTPUT,
-      `subjects<<ASSETS\n${[...expected, "SHA256SUMS"].map((name) => join(directory, name)).join("\n")}\nASSETS\nasset_names=${JSON.stringify([...expected, "SHA256SUMS"])}\n`
+      `subjects<<ASSETS\n${expected.map((name) => join(directory, name)).join("\n")}\nASSETS\nasset_names=${JSON.stringify(expected)}\n`
     )
 }

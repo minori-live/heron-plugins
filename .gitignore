@@ -29,3 +29,8 @@ out/
 third_party/vst3sdk/
 *.p12
 *.p8
+
+
+# APM-managed dependencies and skills
+apm_modules/
+.agents/skills/

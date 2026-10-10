@@ -1,4 +1,4 @@
-# ADR-0002: EQ Nyquist display domain
+# ADR-0003: EQ Nyquist display domain
 
 - Status: Accepted
 - Date: 2026-10-11
