@@ -47,6 +47,16 @@ installation shortcuts. Its signed release is notarized, stapled and checked by
 Gatekeeper. ZIPs are notarized and distributed unchanged; their Apple ticket is
 resolved online because ZIP files cannot be stapled.
 
+AU validation copies each complete bundle outside the scanned Components folder,
+then atomically installs it and updates the Components directory timestamp.
+[Apple documents that directory timestamp changes refresh the cached registry](https://developer.apple.com/library/archive/documentation/MusicAudio/Conceptual/AudioUnitProgrammingGuide/AudioUnitDevelopmentFundamentals/AudioUnitDevelopmentFundamentals.html).
+Fresh probe processes allow up to 30 seconds for missing registrations; duplicate
+identities, wrong versions and instance failures fail immediately. All four
+instances must remain alive together before each architecture's `auval` checks.
+Restoration also updates the directory timestamp. Validation preserves prior
+installations and never deletes the user's global AU caches. Use a clean local
+validation environment if an older cached suite reports a different version.
+
 Automated identity/load/auval checks do not exercise the editor inside Logic.
 Before publishing the draft, manually test installation, editor open/close,
 automation, preset/state restore, project reopen, offline bounce and MIDI

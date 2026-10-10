@@ -16,12 +16,33 @@ int main(int argc, char** argv) {
         const int offset = 1 + i * 4;
         AudioComponentDescription expected{fourcc(argv[offset]), fourcc(argv[offset + 1]), fourcc(argv[offset + 2]), 0, 0};
         auto component = AudioComponentFindNext(nullptr, &expected);
-        if (!component || AudioComponentFindNext(component, &expected)) return 3;
+        const auto registeredCount = AudioComponentCount(&expected);
+        if (!component) {
+            std::fprintf(stderr, "AU registration missing: %s:%s:%s count=%u\n", argv[offset], argv[offset + 1], argv[offset + 2], registeredCount);
+            return 3;
+        }
+        if (registeredCount != 1 || AudioComponentFindNext(component, &expected)) {
+            std::fprintf(stderr, "AU registration duplicate: %s:%s:%s count=%u\n", argv[offset], argv[offset + 1], argv[offset + 2], registeredCount);
+            return 8;
+        }
         AudioComponentDescription actual{};
-        if (AudioComponentGetDescription(component, &actual) != noErr || actual.componentType != expected.componentType || actual.componentSubType != expected.componentSubType || actual.componentManufacturer != expected.componentManufacturer) return 4;
+        auto status = AudioComponentGetDescription(component, &actual);
+        if (status != noErr || actual.componentType != expected.componentType || actual.componentSubType != expected.componentSubType || actual.componentManufacturer != expected.componentManufacturer) {
+            std::fprintf(stderr, "AU identity mismatch: %s:%s:%s status=%d\n", argv[offset], argv[offset + 1], argv[offset + 2], status);
+            return 4;
+        }
         UInt32 version = 0;
-        if (AudioComponentGetVersion(component, &version) != noErr || version != std::strtoul(argv[offset + 3], nullptr, 10)) return 5;
-        if (AudioComponentInstanceNew(component, &instances[i]) != noErr || !instances[i]) return 6;
+        const auto expectedVersion = std::strtoul(argv[offset + 3], nullptr, 10);
+        status = AudioComponentGetVersion(component, &version);
+        if (status != noErr || version != expectedVersion) {
+            std::fprintf(stderr, "AU version mismatch: %s:%s:%s expected=%lu actual=%u status=%d\n", argv[offset], argv[offset + 1], argv[offset + 2], expectedVersion, version, status);
+            return 5;
+        }
+        status = AudioComponentInstanceNew(component, &instances[i]);
+        if (status != noErr || !instances[i]) {
+            std::fprintf(stderr, "AU instance failed: %s:%s:%s status=%d\n", argv[offset], argv[offset + 1], argv[offset + 2], status);
+            return 6;
+        }
     }
     // Keep the entire suite loaded together to expose AU/Objective-C registration collisions.
     for (auto instance : instances)
