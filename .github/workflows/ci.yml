@@ -1,0 +1,25 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+  gate:
+    name: Gate
+    needs: [test, build]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require tests and all published platform bundle builds
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: test "$TEST_RESULT" = success && test "$BUILD_RESULT" = success

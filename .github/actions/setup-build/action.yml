@@ -1,0 +1,82 @@
+name: Setup Heron Plugins build
+description: Install the locked toolchain, native dependencies and shared caches.
+inputs:
+  github-token:
+    description: Token for mise tool downloads outside pull requests.
+    default: ""
+  cache-rust-build:
+    description: Cache target outputs for repeatable check jobs.
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install --yes --no-install-recommends \
+          libcairo2-dev libfontconfig1-dev libfreetype-dev libglib2.0-dev \
+          libpango1.0-dev libx11-dev libx11-xcb-dev libxcb1-dev \
+          libxcb-cursor-dev libxcb-keysyms1-dev libxcb-util-dev libxcb-xkb-dev \
+          libxcursor-dev libxi-dev libxinerama-dev libxkbcommon-dev \
+          libxkbcommon-x11-dev libxrandr-dev libwayland-dev wayland-protocols
+    - name: Install locked toolchain
+      uses: jdx/mise-action@v5.1.1
+      with:
+        version: 2026.10.6
+        cache: true
+        cache_save: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && 'true' || 'false' }}
+        github_token: ${{ inputs.github-token }}
+    - name: Restore Rust build cache
+      if: inputs.cache-rust-build == 'true'
+      uses: Swatinem/rust-cache@v2
+      with:
+        save-if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Configure compiler cache
+      shell: bash
+      env:
+        CACHE_RW_MODE: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && 'READ_WRITE' || 'READ_ONLY' }}
+      run: |
+        echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+        echo "SCCACHE_GHA_RW_MODE=$CACHE_RW_MODE" >> "$GITHUB_ENV"
+        echo "SCCACHE_ERROR_LOG=$RUNNER_TEMP/heron-plugins-sccache-errors.log" >> "$GITHUB_ENV"
+        echo "SCCACHE_LOG=warn" >> "$GITHUB_ENV"
+    - uses: mozilla-actions/sccache-action@v0.0.11
+      with:
+        version: v0.18.0
+    - name: Enable compiler cache and locate downloads
+      id: paths
+      shell: bash
+      run: |
+        echo "RUSTC_WRAPPER=${SCCACHE_PATH:-sccache}" >> "$GITHUB_ENV"
+        echo "cargo-home=${CARGO_HOME:-$HOME/.cargo}" >> "$GITHUB_OUTPUT"
+        echo "pnpm-store=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@v6
+      if: inputs.cache-rust-build != 'true'
+      with:
+        path: |
+          ${{ steps.paths.outputs.cargo-home }}/registry/index
+          ${{ steps.paths.outputs.cargo-home }}/registry/cache
+          ${{ steps.paths.outputs.cargo-home }}/git/db
+        key: cargo-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+        restore-keys: cargo-downloads-${{ runner.os }}-${{ runner.arch }}-
+    - uses: actions/cache@v6
+      with:
+        path: ${{ steps.paths.outputs.pnpm-store }}
+        key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: pnpm-store-${{ runner.os }}-${{ runner.arch }}-
+    - name: Fetch pinned VST3 SDK for binary identity probes
+      shell: bash
+      env:
+        VST3_SDK_COMMIT: 9fad9770f2ae8542ab1a548a68c1ad1ac690abe0
+      run: |
+        git init third_party/vst3sdk
+        git -C third_party/vst3sdk remote add origin https://github.com/steinbergmedia/vst3sdk.git
+        git -C third_party/vst3sdk fetch --depth 1 origin "$VST3_SDK_COMMIT"
+        git -C third_party/vst3sdk checkout --detach FETCH_HEAD
+        git -C third_party/vst3sdk submodule update --init --recursive --depth 1
+        test "$(git -C third_party/vst3sdk rev-parse HEAD)" = "$VST3_SDK_COMMIT"
+    - name: Install workspace packages
+      shell: bash
+      run: mise run install

@@ -1,0 +1,34 @@
+name: Notify Heron of a published suite
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published stable suite version to notify.
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: notify-heron
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: github.repository == 'minori-live/heron-plugins' && (github.event_name == 'workflow_dispatch' || !github.event.release.prerelease)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify stable published release and request an upgrade PR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.HERON_PLUGINS_SYNC_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ inputs.version || github.event.release.tag_name }}
+        run: |
+          test -n "$GH_TOKEN" || { echo '::error::Configure HERON_PLUGINS_SYNC_TOKEN'; exit 1; }
+          version="${RELEASE_VERSION#v}"
+          [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          gh release view "v$version" --json isDraft,isPrerelease,assets > "$RUNNER_TEMP/release.json"
+          jq -e '.isDraft == false and .isPrerelease == false and any(.assets[]; .name == "SHA256SUMS")' "$RUNNER_TEMP/release.json"
+          gh api --method POST repos/minori-live/heron/dispatches \
+            -f event_type=heron-plugins-release-published -f "client_payload[version]=$version"

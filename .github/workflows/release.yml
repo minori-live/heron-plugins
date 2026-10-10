@@ -1,0 +1,93 @@
+name: Release
+on:
+  push:
+    tags: [v*]
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: version
+        shell: bash
+        run: |
+          version="$(tr -d '\r\n' < VERSION)"
+          test "$GITHUB_REF_NAME" = "v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+  test:
+    needs: validate
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+  build:
+    needs: validate
+    uses: ./.github/workflows/build.yml
+    with:
+      release: true
+      full_release_profile: true
+    secrets: inherit
+  publish:
+    needs: [validate, test, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v5.1.1
+        with:
+          version: 2026.10.6
+          install: false
+      - run: mise install node
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: bundles-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify complete release assets and generate SHA-256 checksums
+        id: assets
+        run: mise exec -- node scripts/release-assets.ts release-assets
+      - name: Attest release artifacts
+        if: github.event.repository.visibility == 'public'
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.assets.outputs.subjects }}
+      - name: Create or update draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          EXPECTED_ASSET_NAMES: ${{ steps.assets.outputs.asset_names }}
+        run: |
+          tag="v$RELEASE_VERSION"
+          if existing_is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            test "$existing_is_draft" = true || { echo '::error::Published releases are immutable'; exit 1; }
+            while IFS= read -r asset; do
+              if ! jq -e --arg name "$asset" 'index($name) != null' <<< "$EXPECTED_ASSET_NAMES" >/dev/null; then
+                if [[ "$asset" =~ ^heron-plugins-.*\.(zip|dmg)$ ]]; then
+                  gh release delete-asset "$tag" "$asset" --yes
+                else
+                  echo "::error::Unexpected manual draft asset: $asset"
+                  exit 1
+                fi
+              fi
+            done < <(gh release view "$tag" --json assets --jq '.assets[].name')
+            gh release upload "$tag" release-assets/* --clobber
+          else
+            release_args=(--verify-tag --generate-notes --title "Heron Plugins $tag" --draft)
+            if [[ "$tag" == *-* ]]; then release_args+=(--prerelease); fi
+            gh release create "$tag" release-assets/* "${release_args[@]}"
+          fi
+          gh release view "$tag" --json assets | jq -e --argjson expected "$EXPECTED_ASSET_NAMES" '(.assets | map(.name) | sort) == ($expected | sort)'

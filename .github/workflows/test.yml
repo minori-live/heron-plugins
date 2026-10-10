@@ -1,0 +1,74 @@
+name: Test
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  CARGO_PROFILE_TEST_DEBUG: line-tables-only
+jobs:
+  checks:
+    name: Checks (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux x64, os: ubuntu-24.04, flag: rust-linux }
+          - { name: Windows x64, os: windows-latest, flag: rust-windows }
+          - { name: macOS, os: macos-latest, flag: rust-macos }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: setup_build
+        uses: ./.github/actions/setup-build
+        with:
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
+          cache-rust-build: "true"
+      - name: Check source and compatibility contracts
+        run: mise run check
+      - name: Check optional AU and AAX Rust adapters
+        run: |
+          cargo check --workspace --locked --no-default-features --features au
+          cargo check --workspace --locked --no-default-features --features aax
+      - name: Collect Rust coverage
+        run: mise run ci:coverage
+      - uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/rust/lcov.info
+          flags: ${{ matrix.flag }}
+          name: ${{ matrix.flag }}
+          fail_ci_if_error: true
+          disable_search: true
+      - name: Report compiler cache health
+        if: ${{ always() && steps.setup_build.outcome == 'success' }}
+        run: mise run ci:report:sccache
+  codecov-finalize:
+    name: Finalize Codecov coverage
+    needs: checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          run_command: send-notifications
+          fail_ci_if_error: true

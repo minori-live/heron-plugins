@@ -1,0 +1,31 @@
+[package]
+name = "heron-metronome"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[features]
+default = ["vst3"]
+vst3 = ["dep:truce-vst3"]
+au = ["dep:truce-au"]
+aax = ["dep:truce-aax"]
+rt-paranoid = ["truce/rt-paranoid"]
+
+[dependencies]
+truce.workspace = true
+truce-iced.workspace = true
+truce-vst3 = { workspace = true, optional = true }
+truce-au = { workspace = true, optional = true }
+truce-aax = { workspace = true, optional = true }
+heron-plugin-ui.workspace = true
+
+[dev-dependencies]
+truce-test.workspace = true
+
+[lints]
+workspace = true

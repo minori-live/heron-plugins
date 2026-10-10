@@ -1,0 +1,165 @@
+name: Build
+on:
+  workflow_dispatch:
+    inputs:
+      full_release_profile:
+        description: Keep thin-LTO release settings for a packaging smoke build.
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      release:
+        type: boolean
+        default: false
+      full_release_profile:
+        type: boolean
+        default: false
+    secrets:
+      MAC_CSC_LINK: { required: false }
+      MAC_CSC_KEY_PASSWORD: { required: false }
+      APPLE_API_KEY_P8: { required: false }
+      APPLE_API_KEY_ID: { required: false }
+      APPLE_API_ISSUER: { required: false }
+      AAX_SDK_URL: { required: false }
+      AAX_SDK_TOKEN: { required: false }
+      PACE_ACCOUNT: { required: false }
+      PACE_SIGN_ID_MACOS: { required: false }
+      PACE_SIGN_ID_WINDOWS: { required: false }
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+jobs:
+  configuration:
+    runs-on: ubuntu-24.04
+    outputs:
+      aax: ${{ steps.config.outputs.aax }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: config
+        run: echo "aax=$(jq -r '.aax.enabled' release-config.json)" >> "$GITHUB_OUTPUT"
+  package:
+    needs: configuration
+    name: Package (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: windows-x64, os: windows-latest }
+          - { platform: linux-x64, os: ubuntu-24.04 }
+          - { platform: linux-arm64, os: ubuntu-24.04-arm }
+          - { platform: macos-universal, os: macos-latest }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: setup_build
+        uses: ./.github/actions/setup-build
+        with:
+          github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
+      - name: Use a faster smoke-build profile
+        if: ${{ !inputs.full_release_profile && !inputs.release }}
+        run: |
+          echo 'CARGO_PROFILE_RELEASE_LTO=off' >> "$GITHUB_ENV"
+          echo 'CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16' >> "$GITHUB_ENV"
+      - name: Ensure Rosetta for Intel AU validation
+        if: runner.os == 'macOS'
+        run: softwareupdate --install-rosetta --agree-to-license
+      - name: Import release signing credentials
+        id: apple
+        if: ${{ inputs.release && runner.os == 'macOS' }}
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: node scripts/apple-credentials.ts
+      - name: Build, verify and archive complete bundles and matching symbols
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: node scripts/build.ts --no-aax ${{ inputs.release && '--release' || '' }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundles-${{ matrix.platform }}
+          path: |
+            target/release-assets/*.zip
+            target/release-assets/*.dmg
+          if-no-files-found: error
+          retention-days: 90
+      - name: Remove imported Apple credentials
+        if: ${{ always() && inputs.release && runner.os == 'macOS' && steps.apple.outcome != 'skipped' }}
+        run: node scripts/apple-credentials.ts clean
+      - name: Report compiler cache health
+        if: ${{ always() && steps.setup_build.outcome == 'success' }}
+        run: mise run ci:report:sccache
+  aax:
+    name: AAX release (${{ matrix.platform }})
+    needs: configuration
+    # Off initially. Licensed tools and secrets are never exposed to a public PR.
+    if: ${{ inputs.release && needs.configuration.outputs.aax == 'true' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-universal
+            runner: [self-hosted, heron-plugins-macos-aax]
+          - platform: windows-x64
+            runner: [self-hosted, heron-plugins-windows-aax]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: setup_build
+        uses: ./.github/actions/setup-build
+        with:
+          github-token: ${{ github.token }}
+      - name: Import Apple signing credentials
+        id: apple
+        if: runner.os == 'macOS'
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: node scripts/apple-credentials.ts
+      - name: Require licensed SDK, full wrapper symbols, PACE seal and complete validator results
+        env:
+          AAX_SDK_URL: ${{ secrets.AAX_SDK_URL }}
+          AAX_SDK_TOKEN: ${{ secrets.AAX_SDK_TOKEN }}
+          AAX_SDK_LICENSE_ACCEPTED: ${{ vars.AAX_SDK_LICENSE_ACCEPTED }}
+          AAX_VALIDATOR: ${{ matrix.platform == 'macos-universal' && vars.AAX_VALIDATOR_MACOS || vars.AAX_VALIDATOR_WINDOWS }}
+          PACE_ACCOUNT: ${{ secrets.PACE_ACCOUNT }}
+          PACE_SIGN_ID: ${{ matrix.platform == 'macos-universal' && secrets.PACE_SIGN_ID_MACOS || secrets.PACE_SIGN_ID_WINDOWS }}
+          PACE_SIGNING_SERVICE_READY: ${{ vars.PACE_SIGNING_SERVICE_READY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: node scripts/build.ts --release --only-aax
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundles-${{ matrix.platform }}-aax
+          path: target/release-assets/*-aax*.zip
+          if-no-files-found: error
+          retention-days: 90
+      - name: Remove imported Apple credentials
+        if: ${{ always() && runner.os == 'macOS' && steps.apple.outcome != 'skipped' }}
+        run: node scripts/apple-credentials.ts clean
+      - name: Report compiler cache health
+        if: ${{ always() && steps.setup_build.outcome == 'success' }}
+        run: mise run ci:report:sccache
