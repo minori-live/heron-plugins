@@ -1,0 +1,2262 @@
+[
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 0,
+    "maximum": 60.0,
+    "minimum": -60.0,
+    "quarterPoints": [-30.0, 0.0, 30.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 24,
+    "id": 1,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 2,
+    "maximum": 2.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 1.0, 2.0],
+    "steps": 2,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 3,
+    "maximum": 2.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.5, 1.0, 1.5],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 4,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 5,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 2.0,
+    "flags": 17,
+    "id": 7,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 8,
+    "maximum": 1.0,
+    "minimum": -1.0,
+    "quarterPoints": [-0.5, 0.0, 0.5],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 9,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 10,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 100,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 101,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 102,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 103,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 104,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 105,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 106,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 107,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 119,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 132,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 133,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 134,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 135,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 136,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 137,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 138,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 139,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 151,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 164,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 165,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 166,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 167,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 168,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 169,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 170,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 171,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 183,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 196,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 197,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 198,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 199,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 200,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 201,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 202,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 203,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 215,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 228,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 229,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 230,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 231,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 232,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 233,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 234,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 235,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 247,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 260,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 261,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 262,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 263,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 264,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 265,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 266,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 267,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 279,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 292,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 293,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 294,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 295,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 296,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 297,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 298,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 299,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 311,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 324,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 325,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 326,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 327,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 328,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 329,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 330,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 331,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 343,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 356,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 357,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 358,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 359,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 360,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 361,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 362,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 363,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 375,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 388,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 389,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 390,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 391,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 392,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 393,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 394,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 395,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 407,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 420,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 421,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 422,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 423,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 424,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 425,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 426,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 427,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 439,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 452,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 453,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 454,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 455,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 456,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 457,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 458,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 459,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 471,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 484,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 485,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 486,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 487,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 488,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 489,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 490,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 491,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 503,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 516,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 517,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 518,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 519,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 520,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 521,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 522,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 523,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 535,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 548,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 549,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 550,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 551,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 552,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 553,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 554,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 555,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 567,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 580,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 581,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 582,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 583,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 584,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 585,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 586,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 587,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 599,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 612,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 613,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 614,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 615,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 616,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 617,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 618,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 619,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 631,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 644,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 645,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 646,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 647,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 648,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 649,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 650,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 651,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 663,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 676,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 677,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 678,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 679,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 680,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 681,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 682,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 683,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 695,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 708,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 709,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 710,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 711,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 712,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 713,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 714,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 715,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 727,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 740,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 741,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 742,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 743,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 744,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 745,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 746,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 747,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 759,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 772,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 773,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 774,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 775,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 776,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 777,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 778,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 779,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 791,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 804,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 805,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 806,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 807,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 808,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 809,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 810,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 811,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 823,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 836,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1.0,
+    "flags": 17,
+    "id": 837,
+    "maximum": 1.0,
+    "minimum": 0.0,
+    "quarterPoints": [0.0, 1.0, 1.0],
+    "steps": 1,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 838,
+    "maximum": 9.0,
+    "minimum": 0.0,
+    "quarterPoints": [2.0, 5.0, 7.0],
+    "steps": 9,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 1000.0,
+    "flags": 17,
+    "id": 839,
+    "maximum": 30000.0,
+    "minimum": 1.0,
+    "quarterPoints": [13.160740129524926, 173.20508075688775, 2279.507056954777],
+    "steps": null,
+    "unit": "Hz"
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 840,
+    "maximum": 36.0,
+    "minimum": -36.0,
+    "quarterPoints": [-18.0, 0.0, 18.0],
+    "steps": null,
+    "unit": "dB"
+  },
+  {
+    "defaultPlain": 0.7071067811865476,
+    "flags": 17,
+    "id": 841,
+    "maximum": 40.0,
+    "minimum": 0.025,
+    "quarterPoints": [0.15811388300841897, 1.0, 6.32455532033676],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 12.0,
+    "flags": 17,
+    "id": 842,
+    "maximum": 1000.0,
+    "minimum": 0.0,
+    "quarterPoints": [250.0, 500.0, 750.0],
+    "steps": null,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 843,
+    "maximum": 4.0,
+    "minimum": 0.0,
+    "quarterPoints": [1.0, 2.0, 3.0],
+    "steps": 4,
+    "unit": ""
+  },
+  {
+    "defaultPlain": 0.0,
+    "flags": 17,
+    "id": 855,
+    "maximum": 23.0,
+    "minimum": 0.0,
+    "quarterPoints": [6.0, 12.0, 17.0],
+    "steps": 23,
+    "unit": ""
+  }
+]

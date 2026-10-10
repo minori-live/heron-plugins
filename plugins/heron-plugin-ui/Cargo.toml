@@ -1,0 +1,16 @@
+[package]
+name = "heron-plugin-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+iced_widget.workspace = true
+truce.workspace = true
+truce-iced.workspace = true
+heron-iced-ui.workspace = true
+
+[lints]
+workspace = true

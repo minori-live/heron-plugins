@@ -1,0 +1,47 @@
+[package]
+name = "heron-eq"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[features]
+default = ["vst3"]
+vst3 = ["dep:truce-vst3"]
+au = ["dep:truce-au"]
+aax = ["dep:truce-aax"]
+rt-paranoid = ["truce/rt-paranoid"]
+
+[dependencies]
+truce.workspace = true
+truce-iced.workspace = true
+truce-vst3 = { workspace = true, optional = true }
+truce-au = { workspace = true, optional = true }
+truce-aax = { workspace = true, optional = true }
+heron-plugin-ui.workspace = true
+heron-plugin-dsp.workspace = true
+rustfft.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+arboard.workspace = true
+
+[dev-dependencies]
+truce-test.workspace = true
+iced_runtime = "0.14.0"
+
+[target.'cfg(windows)'.dev-dependencies]
+baseview = { package = "baseview-truce", version = "=0.1.1-truce.13" }
+raw-window-handle-05 = { package = "raw-window-handle", version = "=0.5.2" }
+windows = { version = "0.62.2", features = [
+  "Win32_Foundation",
+  "Win32_System_Ole",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging"
+] }
+
+[lints]
+workspace = true

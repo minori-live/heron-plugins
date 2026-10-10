@@ -1,0 +1,26 @@
+codecov:
+  notify:
+    manual_trigger: true
+coverage:
+  status:
+    project:
+      default: { target: auto, threshold: 1% }
+    patch:
+      default: { target: auto, threshold: 1% }
+ignore:
+  - third_party/**
+comment:
+  layout: "header, diff, flags, components, files"
+  behavior: default
+  require_changes: false
+flag_management:
+  default_rules:
+    carryforward: false
+  individual_flags:
+    - { name: rust-linux, paths: [crates/, plugins/], carryforward: false }
+    - { name: rust-windows, paths: [crates/, plugins/], carryforward: false }
+    - { name: rust-macos, paths: [crates/, plugins/], carryforward: false }
+component_management:
+  individual_components:
+    - { component_id: plugins, name: plugins, paths: [plugins/**] }
+    - { component_id: ui, name: shared UI, paths: [crates/iced-ui/**] }
