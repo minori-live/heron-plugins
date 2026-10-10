@@ -2,6 +2,9 @@
 
 Status: accepted
 
+Artifact pinning is updated by
+[ADR 0002](0002-release-artifact-pinning.md).
+
 Heron Gain, EQ, Sine, Metronome and their shared UI change more frequently than the
 DAW. Building them from Heron's workspace couples iteration, build cost and
 release ownership to the desktop application.
@@ -20,11 +23,11 @@ the suite version does not change that fixture's provenance.
 
 Publish VST3 for four platforms, AUv2 for universal macOS and a macOS installation
 DMG. AAX is disabled behind explicit SDK/signing/validation gates. Heron pins
-released VST3 runtime and symbol assets by version, commit and full SHA-256 and
+released VST3 runtime and symbol assets by version, commit and filename and
 stages them for tests/packaging. This producer owns a serialized workflow that
 maintains one Heron upgrade PR after a stable release or manual retry. It executes
 only trusted Heron main's artifact updater and consumer, preserves main/pending
-version and checksum guards, and uses a scoped producer-only PAT for branch and
+version, source-commit and asset-name guards, and uses a scoped producer-only PAT for branch and
 PR writes. Heron owns the validation contract but has no dispatch receiver or
 synchronization credential. Upgrades require manual merge; users receive the
 suite with Heron app updates. Other DAWs can install standalone release downloads.

@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto"
+import { spawnSync } from "node:child_process"
 import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { run } from "./process.ts"
+import { normalizeAppleApiPrivateKey } from "./apple-private-key.ts"
 
 const directory = join(process.env.RUNNER_TEMP ?? "", "heron-plugins-apple-signing")
 const keychain = join(directory, "release.keychain-db")
@@ -26,6 +28,8 @@ if (import.meta.main) {
       if (!process.env[name]) throw new Error(`Signed release requires ${name}`)
     if (process.env.MAC_CSC_KEY_PASSWORD === undefined)
       throw new Error("Signed release requires MAC_CSC_KEY_PASSWORD")
+    const normalizedKey = normalizeAppleApiPrivateKey(process.env.APPLE_API_KEY_P8!)
+    console.log(`Apple API private key input: ${normalizedKey.inputFormat}`)
     await mkdir(directory, { recursive: true, mode: 0o700 })
     const previous = [
       ...run("security", ["list-keychains", "-d", "user"], { capture: true }).matchAll(
@@ -36,7 +40,7 @@ if (import.meta.main) {
     const certificate = join(directory, "certificate.p12")
     const apiKey = join(directory, "AuthKey.p8")
     await writeFile(certificate, Buffer.from(process.env.MAC_CSC_LINK!, "base64"), { mode: 0o600 })
-    await writeFile(apiKey, Buffer.from(process.env.APPLE_API_KEY_P8!, "base64"), { mode: 0o600 })
+    await writeFile(apiKey, normalizedKey.pem, { mode: 0o600 })
     const password = randomBytes(32).toString("hex")
     run("security", ["create-keychain", "-p", password, keychain])
     run("security", ["set-keychain-settings", "-lut", "21600", keychain])
@@ -66,6 +70,34 @@ if (import.meta.main) {
     }).match(/"(Developer ID Application:[^"\n]+)"/)?.[1]
     if (!identity)
       throw new Error("PKCS#12 does not contain a valid Developer ID Application identity")
+    const authentication = spawnSync(
+      "xcrun",
+      [
+        "notarytool",
+        "store-credentials",
+        "heron-plugins-release",
+        "--key",
+        apiKey,
+        "--key-id",
+        process.env.APPLE_API_KEY_ID!,
+        "--issuer",
+        process.env.APPLE_API_ISSUER!,
+        "--keychain",
+        keychain,
+        "--validate"
+      ],
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+        encoding: "utf8",
+        timeout: 60_000,
+        maxBuffer: 1024 * 1024
+      }
+    )
+    if (authentication.error || authentication.status !== 0)
+      throw new Error(
+        "Apple notarization authentication failed or timed out; verify the API key, key ID, issuer and network access"
+      )
+    console.log("Apple notarization credentials validated")
     if (!process.env.GITHUB_ENV) throw new Error("Missing GITHUB_ENV")
     await appendFile(
       process.env.GITHUB_ENV,

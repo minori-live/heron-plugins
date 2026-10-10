@@ -8,6 +8,7 @@ cmake = "4.3"
 "cargo:cargo-truce" = "6.3"
 "cargo:cargo-llvm-cov" = "0.8"
 "cargo:cargo-shear" = "1.13"
+apm = "0.33.0"
 
 [settings]
 lockfile = true
