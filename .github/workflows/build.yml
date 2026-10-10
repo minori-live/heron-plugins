@@ -2,6 +2,10 @@ name: Build
 on:
   workflow_dispatch:
     inputs:
+      validate_apple_credentials:
+        description: Validate configured Apple credentials without building or publishing artifacts.
+        type: boolean
+        default: false
       full_release_profile:
         description: Keep thin-LTO release settings for a packaging smoke build.
         type: boolean
@@ -35,7 +39,35 @@ env:
   CARGO_INCREMENTAL: "0"
   RUST_BACKTRACE: "1"
 jobs:
+  apple-credentials:
+    name: Validate Apple release credentials
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.validate_apple_credentials }}
+    runs-on: macos-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-build
+        with:
+          github-token: ${{ github.token }}
+      - name: Validate signing identity and notarization authentication
+        id: apple
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: node scripts/apple-credentials.ts
+      - name: Remove imported Apple credentials
+        if: ${{ always() && (steps.apple.outcome == 'success' || steps.apple.outcome == 'failure') }}
+        run: node scripts/apple-credentials.ts clean
   configuration:
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.validate_apple_credentials) }}
     runs-on: ubuntu-24.04
     outputs:
       aax: ${{ steps.config.outputs.aax }}

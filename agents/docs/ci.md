@@ -71,19 +71,36 @@ Configure these repository secrets before a signed tag release:
 | -------------------------- | --------------------------------------------------------------- |
 | `MAC_CSC_LINK`             | Base64 Developer ID Application PKCS#12 certificate/private key |
 | `MAC_CSC_KEY_PASSWORD`     | PKCS#12 password                                                |
-| `APPLE_API_KEY_P8`         | Base64 App Store Connect API private key                        |
+| `APPLE_API_KEY_P8`         | Complete App Store Connect `.p8` PEM private key or its Base64  |
 | `APPLE_API_KEY_ID`         | API key ID                                                      |
 | `APPLE_API_ISSUER`         | API issuer ID                                                   |
 | `CODECOV_TOKEN`            | Coverage token, when needed by repository visibility/settings   |
 | `HERON_PLUGINS_SYNC_TOKEN` | Producer-only scoped token for Heron upgrade branches and PRs   |
 
+The API key must be a complete, unencrypted PKCS#8 EC private key, including
+`BEGIN PRIVATE KEY` and `END PRIVATE KEY` lines. Raw PEM and strict standard
+Base64 of that complete PEM are accepted; line endings are normalized. Partial
+PEM, encrypted keys, another key type and malformed Base64 fail before keychain
+mutation or compilation. The log identifies only `PEM` or `Base64`, never key
+contents or detailed parser errors.
+
 Apple credentials are imported into a temporary keychain and removed in an
-always-run cleanup step. The pipeline requires a valid Developer ID Application
+always-run cleanup step. Before compiling, `notarytool store-credentials`
+validates the key, key ID and issuer using the `heron-plugins-release` profile
+in that temporary keychain. Authentication errors produce a fixed diagnostic;
+submissions continue to use the private-key file directly. The pipeline requires a valid Developer ID Application
 identity, accepted notarization, verified bundle seals and stapled DMG. Missing
 credentials fail the release; ad-hoc development builds stay available.
 No plugin-side Sentry DSN, organization/project, upload token or runtime capture
 is configured in this release. The local Sentry CLI only checks debug files and
 generates source bundles; it does not make telemetry or upload requests.
+
+To troubleshoot credentials before a full build, manually dispatch Build with
+`validate_apple_credentials` enabled. This mode runs the same normalization,
+certificate import and authentication preflight, then cleans up; it does not
+package or publish artifacts. The original `v0.6.4` tag at `9b8c303` predates
+raw-PEM support and still requires Base64 of the complete PEM. Success with a
+newer credential-only workflow does not change that tag's credential handling.
 
 ## Publishing and synchronization
 
