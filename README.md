@@ -25,6 +25,9 @@ upgrades it with application updates.
 ## Development
 
 Use a login shell and the locked `mise` toolchain. On Windows, use PowerShell 7.
+Follow [the development environment](agents/docs/environment.md) for platform
+prerequisites and [the engineering and testing standards](agents/docs/README.md)
+for implementation and review. The suite maintains these rules locally.
 
 ```sh
 mise install
@@ -43,7 +46,11 @@ release credentials and produces signed, notarized macOS downloads.
 Change `VERSION`, then run `pnpm version:sync`, `cargo check --workspace` and
 `pnpm version:check` to synchronize suite metadata and the Cargo lockfile before
 tagging. Tag pushes run all checks and create a draft GitHub Release. Publishing
-a stable release asks Heron to open a dependency upgrade PR.
+a stable release runs this repository's workflow to validate the release using
+Heron's artifact consumer and maintain one manually merged Heron upgrade PR.
+The scoped synchronization token lives only in this repository. If Heron main
+is not yet bootstrapped or an upgrade attempt fails, retry the workflow manually;
+the published plug-in release remains available.
 
 There is no plugin-side Sentry reporting or upload configuration in this
 release. Symbol/source archives are generated offline; Heron's release pipeline

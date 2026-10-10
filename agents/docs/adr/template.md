@@ -1,0 +1,38 @@
+# ADR-NNNN: Decision title
+
+- Status: Proposed
+- Date: YYYY-MM-DD
+- Owners: project maintainers
+- Scope: current implementation, accepted future design, or proposal; link delivery evidence separately
+- Related: issue or pull request when available
+
+## Context
+
+Describe the user or engineering problem, current constraints and why a durable
+decision is required now.
+
+## Decision
+
+State the decision in testable terms (use "Proposed decision" while proposed).
+Name ownership, thread/ABI boundaries, persisted state, failure behavior and
+compatibility consequences where applicable.
+
+## Alternatives rejected
+
+### Alternative name
+
+Explain the benefit and the reason it was not selected.
+
+## Consequences
+
+Record benefits, adverse consequences, follow-up work and constraints that
+future changes must preserve.
+
+## Verification
+
+Name automated checks, manual host evidence or architecture inspection that
+demonstrates the implementation follows the decision.
+
+## Reconsider when
+
+State the new evidence or constraint that would justify a replacement ADR.

@@ -9,6 +9,14 @@ This document distinguishes implemented behavior from verification and remaining
 compatibility work; the presence of an editor control alone is not evidence of
 audio processing.
 
+Imported from Heron's
+[EQ notes](https://github.com/minori-live/heron/blob/fef5cdb165bb322e07f2a280fea8372aa5e22393/agents/docs/heron-eq.md)
+on 2026-10-10. This repository now maintains the plugin DSP/editor contract;
+[architecture](architecture.md), [interaction design](interaction-design.md)
+and [testing policy](testing.md) govern changes. Heron's
+[host integration notes](https://github.com/minori-live/heron/blob/main/agents/docs/heron-eq.md)
+own application-specific acceptance.
+
 ## Ownership
 
 - `crates/plugin-dsp/src/eq/` (`heron-plugin-dsp`): validated filter configurations, digital filters,
@@ -29,7 +37,7 @@ Audio Unit registration uses the MusicEffect type.
 
 ## Feature contract
 
-| Area           | Heron behavior                                                                                               | Required evidence                                                           |
+| Area           | Suite behavior                                                                                               | Required evidence                                                           |
 | -------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
 | Bands          | At most 24; stable slot IDs; independent presence and bypass                                                 | Add/delete/reuse, parameter/state recall and 24-band audio                  |
 | Editing        | Frequency/gain dragging, Q wheel, numeric inputs, group selection, axis locks, delete, duplicate and solo    | Gesture cancellation, balanced host edits and native rendering              |
@@ -46,7 +54,7 @@ Audio Unit registration uses the MusicEffect type.
 
 ## Editor acceptance
 
-Heron's native editor places the frequency graph between compact bars.
+Heron EQ's native editor places the frequency graph between compact bars.
 Selected-band controls stay at the lower center of the graph, keeping their
 position and widget identity stable during edits.
 
@@ -64,7 +72,7 @@ The editor must keep these properties at its 1040 by 700 minimum size:
 - Processing mode, analyzer and output controls open from
   compact bar entries. Their panels remain anchored inside the window and close
   without modifying the current EQ.
-- Heron's host handles undo/redo and saved plug-in settings. The native editor
+- The DAW host handles undo/redo and saved plug-in settings. The native editor
   provides band copy/paste through its Tools and band-action menus.
 - Common actions use vector icons with hover tooltips: top-bar Tools ellipsis;
   footer power and analyzer bars; band headphones, trash and more actions. Processing mode,
@@ -105,9 +113,11 @@ The analysis fitter and the native Zero Latency processor share digital
 biquad Bell/LowShelf/HighShelf coefficients. A fitted preset uses one RBJ section
 per fitted band, the unchanged frequency, gain and Q, and an independent output
 gain. Its stored `slope_db_oct: 12` selects that single-section configuration;
-it does not describe a Bell's asymptotic roll-off. `tests/fixtures/fit-preset.json`
-and `fit-response.json` are the common renderer/native numerical contract at
-48 kHz.
+it does not describe a Bell's asymptotic roll-off. `plugins/heron-eq/tests/fixtures/fit-preset.json`
+and `plugins/heron-eq/tests/fixtures/fit-response.json` preserve the renderer/native
+numerical contract at 48 kHz. Heron keeps corresponding compatibility copies in
+`crates/audio-host/tests/fixtures/eq-fit/`; they are separately owned fixtures,
+not a shared source directory. Preserve their provenance and numerical meaning.
 
 The native editor displays dB/oct only for Low Cut, High Cut and Band Pass.
 Bell, shelf, notch, tilt and all-pass controls omit that label. Their existing
@@ -222,15 +232,15 @@ IDs and audio samples, with source provenance in
 `plugins/heron-eq/tests/fixtures/provenance.json`. The independent producer's
 initial version 0.6.4 does not change that historical baseline.
 
-The probe must inspect the built bundle, including class identity, layouts,
-sidechain/event buses and native editor support. Rendering alone does not prove
-live-window mouse routing or hardware audio. Browser evidence must retain the
-reported Chinese result-area regression, preset export and cancellation.
+The producer's `fixtures/vst3-probe.cpp` checks the packaged factory's class
+identity. It does not establish layouts, event buses, audio or native editor
+behavior. Heron's prepared-bundle host tests inspect actual layouts and
+sidechain/event buses, measure seven sine responses in all three host channel
+modes and check automation causality. Rendering alone does not prove live-window
+mouse routing or hardware audio. Heron owns browser evidence for the Chinese
+result-area regression, preset export and cancellation.
 
-The packaged response test drives the actual DLL through Heron's VST3 host in
-mono, mono-to-stereo and stereo, and compares seven measured sine responses
-against the shared fitting fixture. The probe reads actual event bus counts;
-an effect category does not imply absence of MIDI input. The manual render test
+The producer's manual render test
 produces empty, three-band, selected-band, 24-band, numeric-entry and
 bar-panel scenes from actual processor-fed telemetry at normal and minimum
 window sizes. The files and dimensions are recorded in `out/eq-native/scenes.json`.
@@ -245,7 +255,7 @@ secondary menu changes. Separate regressions must cover immediate previews
 without audio, stale FIR rejection and Match failure/dismissal without parameter
 changes.
 
-The `vst3_resize` regression uses live native Windows attachments at actual
+Heron's `crates/audio-host/tests/builtin_eq_resize.rs` regression uses live native Windows attachments at actual
 per-window DPI with 100% and 125% host zoom. The negotiated VST3 view and child
 HWND must have the same physical extent. It grows, shrinks and repeats the
 accepted logical size (1120 × 760 → 1500 × 950 → 1040 × 700 → 1120 × 760),
@@ -284,7 +294,9 @@ The locked Truce wrapper coalesces host automation into sub-blocks of at least
 but arbitrary host parameter offsets do not establish one-sample automation
 precision. The packaged test checks output-gain causality at a 32-sample boundary.
 
-The fitter's quota is an upper bound, not an exact count or an optimality
-certificate. Its default remains three bands and search remains cancellable.
-Fit exports describe magnitude filters at the selected sample rate; they cannot
-reconstruct phase, delay, nonlinearities or the source plug-in's channel routing.
+Heron's external renderer fitter uses a quota as an upper bound, not an exact
+count or optimality certificate; its default remains three bands and its search
+is cancellable. Those rules belong to Heron, not the plugin's native sidechain
+matching algorithm, which uses available slots up to `MAX_EQ_BANDS`. Fit exports
+describe magnitude filters at the selected sample rate; they cannot reconstruct
+phase, delay, nonlinearities or the source plug-in's channel routing.

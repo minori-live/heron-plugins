@@ -21,9 +21,13 @@ the suite version does not change that fixture's provenance.
 Publish VST3 for four platforms, AUv2 for universal macOS and a macOS installation
 DMG. AAX is disabled behind explicit SDK/signing/validation gates. Heron pins
 released VST3 runtime and symbol assets by version, commit and full SHA-256 and
-stages them for tests/packaging. Updating a plugin release opens a Heron upgrade
-PR; users receive the suite with Heron app updates. Other DAWs can install the
-standalone release downloads.
+stages them for tests/packaging. This producer owns a serialized workflow that
+maintains one Heron upgrade PR after a stable release or manual retry. It executes
+only trusted Heron main's artifact updater and consumer, preserves main/pending
+version and checksum guards, and uses a scoped producer-only PAT for branch and
+PR writes. Heron owns the validation contract but has no dispatch receiver or
+synchronization credential. Upgrades require manual merge; users receive the
+suite with Heron app updates. Other DAWs can install standalone release downloads.
 
 Generate symbols and source bundles per format from final linked modules, check
 matching debug IDs and archive them separately. This release introduces no

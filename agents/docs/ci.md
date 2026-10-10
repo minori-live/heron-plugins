@@ -75,7 +75,7 @@ Configure these repository secrets before a signed tag release:
 | `APPLE_API_KEY_ID`         | API key ID                                                      |
 | `APPLE_API_ISSUER`         | API issuer ID                                                   |
 | `CODECOV_TOKEN`            | Coverage token, when needed by repository visibility/settings   |
-| `HERON_PLUGINS_SYNC_TOKEN` | Scoped token for dispatching and opening Heron upgrade PRs      |
+| `HERON_PLUGINS_SYNC_TOKEN` | Producer-only scoped token for Heron upgrade branches and PRs   |
 
 Apple credentials are imported into a temporary keychain and removed in an
 always-run cleanup step. The pipeline requires a valid Developer ID Application
@@ -100,14 +100,38 @@ unexpected manual attachments. Publish only after the upload job has completed;
 do not publish during a rerun. See
 [GitHub's immutable release setting](https://docs.github.com/en/rest/repos/repos#enable-immutable-releases).
 
-Publishing a stable release sends `heron-plugins-release-published` to
-`minori-live/heron` with `client_payload.version`. Prereleases do not dispatch.
-Configure the same `HERON_PLUGINS_SYNC_TOKEN` in both repositories, scoped to
-Heron contents and pull-request write permissions. The receiver uses that token
-to push its dependency branch and create a normal CI-triggering PR. Heron
-resolves the latest complete stable release, preventing delayed notifications
-from rolling the dependency backward. Its own application release controls when
-users receive the new built-in suite.
+Publishing a stable release runs `update-heron.yml` in this producer repository.
+Prereleases do not run it. Configure `HERON_PLUGINS_SYNC_TOKEN` only here as a
+fine-grained PAT owned by `minori-live`, selecting only `minori-live/heron` with
+Contents and Pull requests read/write permissions. No Heron secret, dispatch
+receiver, Actions permission or token forwarding is needed. The scoped PAT pushes
+the upgrade branch and creates/updates the PR so normal Heron CI runs.
+
+The serialized job checks out the coordinator from producer main and the
+consumer from trusted Heron main. Heron main must already contain the artifact
+consumer and an initialized release lock; otherwise the job fails with a
+bootstrap instruction. It never runs scripts from an upgrade branch. The job
+reuses Heron's `pnpm plugins:update --latest` for full release/commit/checksum
+validation, followed by `plugins:prepare` for the actual Linux x64 runtime and
+symbol archives. An existing pending branch's lock participates in downgrade and
+same-version immutability checks. PR CI covers the remaining platforms and native
+integration.
+
+The job maintains one rolling `dsh0416/update-heron-plugins` branch and PR. It
+refuses unrelated pending edits, checks main/branch freshness, and updates with
+an exact `--force-with-lease`. Identical pending commits are reused while the PR
+title and body are reconciled independently, so retrying after a successful push
+and failed PR creation recovers without another commit. A main update rebuilds
+the lock-only branch from the current main; a main lock that already includes the
+release supersedes any open upgrade PR. The PR requires manual merge. Heron's
+application release controls when users receive the new built-in suite.
+
+Upgrade-job failure never revokes or modifies a published plug-in release. After
+bootstrap, credentials, API availability or branch freshness is repaired, run
+`Maintain the Heron plug-in upgrade PR` manually with an empty version to resolve
+the latest stable release. An explicit version is available for controlled
+retries and still cannot downgrade main or a pending upgrade. Deploy this
+workflow on producer main before publishing releases that should trigger it.
 
 ## AAX activation
 
