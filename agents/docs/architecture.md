@@ -112,6 +112,10 @@ permission to acquire the same locks in audio processing.
 Native attachment, resize and scale negotiation must share one coordinate
 contract. The plug-in converts host/client geometry to logical Iced layout and
 physical rendering consistently, including hit testing after accepted resizes.
+On Windows, the loading host owns process DPI awareness and the thread DPI
+context supplied to embedded editors. Window initialization must not override
+either policy; standalone executables initialize their own DPI policy before
+creating windows. See [ADR-0004](adr/0004-host-owned-windows-dpi.md).
 Do not preserve an obsolete old-size/new-size pointer ratio after drawing the
 new layout. Keep pinned toolkit patches and their provenance together; remove
 them only after equivalent upstream behavior passes the relevant native checks.
