@@ -1,5 +1,5 @@
 //! Transient panels and continuous control lifetimes, owned by the editor.
-use super::{EqUi, Panel, knobs::KnobMessage, model::Number};
+use super::{EqUi, Panel, knobs::KnobMessage, maximum_band_frequency, model::Number};
 
 pub(super) fn handles_key(event: &super::keyboard::Event) -> bool {
     use super::keyboard::{Event, Key, key::Named};
@@ -53,7 +53,7 @@ impl EqUi {
             }
             KnobMessage::Change(field, value) => {
                 self.model.get_mut().knob(field, value);
-                let maximum = (self.active_params().telemetry.sample_rate() * 0.499).min(30_000.0);
+                let maximum = maximum_band_frequency(self.active_params().telemetry.sample_rate());
                 for band in &mut self.model.get_mut().config.bands {
                     band.frequency_hz = band.frequency_hz.min(maximum);
                 }

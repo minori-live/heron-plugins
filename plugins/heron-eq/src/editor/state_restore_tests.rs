@@ -179,16 +179,78 @@ fn graph(ui: &EqUi) -> graph::Graph {
         output_pan_matrix: [[1.0, 0.0], [0.0, 1.0]],
         prepared: None,
         selected: model.selected.clone(),
-        spectrum: SpectrumSnapshot::default(),
+        spectrum: SpectrumSnapshot {
+            sample_rate: ui.params.telemetry.sample_rate(),
+            ..SpectrumSnapshot::default()
+        },
         pre: true,
         post: true,
         external: false,
         range_db: 12.0,
         floor_db: -120.0,
-        snap: false,
+        snap: ui.piano,
         font: truce_iced::iced::Font::DEFAULT,
         channel: EqChannel::Stereo,
         collisions: Vec::new(),
+    }
+}
+
+#[test]
+fn nyquist_edge_double_click_commits_a_valid_band_with_or_without_piano_snap() {
+    use truce_iced::iced::{Point, Rectangle, Size, mouse, widget::canvas::Program};
+    for (sample_rate, snap) in [
+        (8_000.0, false),
+        (32_000.0, false),
+        (44_100.0, false),
+        (44_100.0, true),
+        (48_000.0, false),
+        (192_000.0, false),
+    ] {
+        let source = Harness::new();
+        source.params.telemetry.set_sample_rate(sample_rate);
+        let mut ui = EqUi::new(source.params.clone());
+        ui.piano = snap;
+        let bounds = Rectangle::new(Point::ORIGIN, Size::new(1000.0, 600.0));
+        let plot = geometry::Plot::new(bounds.size(), 12.0, sample_rate);
+        let pointer = Point::new(
+            (plot.bounds.x + plot.bounds.width).next_down(),
+            plot.gain_y(-8.0),
+        );
+        let mut state = graph::GraphState::default();
+        for event in [
+            mouse::Event::ButtonPressed(mouse::Button::Left),
+            mouse::Event::ButtonReleased(mouse::Button::Left),
+            mouse::Event::ButtonPressed(mouse::Button::Left),
+            mouse::Event::ButtonReleased(mouse::Button::Left),
+        ] {
+            if let Some(Message::Plugin(message)) = graph(&ui)
+                .update(
+                    &mut state,
+                    &Event::Mouse(event),
+                    bounds,
+                    mouse::Cursor::Available(pointer),
+                )
+                .and_then(|action| action.into_inner().0)
+            {
+                dispatch(&mut ui, &source, message);
+            }
+        }
+        let model = ui.model.borrow();
+        assert_eq!(
+            model.config.bands.len(),
+            1,
+            "right-edge Add rolled back at {sample_rate} Hz, snap={snap}"
+        );
+        assert!(model.config.validate(sample_rate).is_ok());
+        let persisted = source.params.snapshot();
+        assert_eq!(persisted.bands.len(), 1);
+        assert!(persisted.validate(sample_rate).is_ok());
+        assert!(
+            (persisted.bands[0].frequency_hz - model.config.bands[0].frequency_hz).abs() < 1.0e-8
+        );
+        assert!((persisted.bands[0].gain_db - model.config.bands[0].gain_db).abs() < 1.0e-8);
+        assert!(!ui.notice.as_ref().is_some_and(|notice| notice.error));
+        assert!(!model.has_gesture());
     }
 }
 

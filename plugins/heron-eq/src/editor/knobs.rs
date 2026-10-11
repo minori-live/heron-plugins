@@ -13,7 +13,7 @@ use truce_iced::{
     },
 };
 
-use super::{EqMessage, EqUi, model::Number, style};
+use super::{EqMessage, EqUi, maximum_band_frequency, model::Number, style};
 
 const START: f32 = std::f32::consts::PI * 0.75;
 const END: f32 = std::f32::consts::PI * 2.25;
@@ -119,7 +119,7 @@ pub fn view<'a>(
         Number::Gain => "Gain",
         _ => "Q",
     };
-    let maximum = (ui.active_params().telemetry.sample_rate() * 0.499).min(30_000.0);
+    let maximum = maximum_band_frequency(ui.active_params().telemetry.sample_rate());
     let mut column = Column::new()
         .push(text(label).size(11).color(colors.text_muted))
         .push(

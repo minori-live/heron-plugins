@@ -190,6 +190,8 @@ range does not rewrite them. Saved frequencies below 10 Hz retain their existing
 left-edge clamping for drawing and interaction. Nodes whose center frequency
 exceeds the current Nyquist frequency are hidden and excluded from point and
 box selection; their stored settings remain unchanged.
+Band creation, dragging and frequency controls clamp strictly below the DSP's
+exclusive `0.499 * sample_rate` limit while the graph displays full Nyquist.
 [ADR 0003](adr/0003-eq-nyquist-display-domain.md) records this display decision
 and its compatibility boundary.
 

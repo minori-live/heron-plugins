@@ -143,6 +143,68 @@ fn dispatch(ui: &mut EqUi, source: &Harness, message: EqMessage) {
 }
 
 #[test]
+fn frequency_drags_publish_a_valid_upper_bound_and_close_host_edits() {
+    for rotary in [false, true] {
+        let source = Harness::new();
+        let sample_rate = 44_100.0;
+        source.params.telemetry.set_sample_rate(sample_rate);
+        let mut ui = EqUi::new(source.params.clone());
+        dispatch(
+            &mut ui,
+            &source,
+            EqMessage::Graph(GraphMessage::Add {
+                frequency: 1000.0,
+                gain: 0.0,
+            }),
+        );
+        source.events.lock().unwrap().clear();
+        let messages = if rotary {
+            [
+                EqMessage::Knob(knobs::KnobMessage::Begin(Number::Frequency)),
+                EqMessage::Knob(knobs::KnobMessage::Change(Number::Frequency, sample_rate)),
+                EqMessage::Knob(knobs::KnobMessage::End),
+            ]
+        } else {
+            [
+                EqMessage::Graph(GraphMessage::BeginDrag {
+                    id: 1,
+                    additive: false,
+                    solo: false,
+                }),
+                EqMessage::Graph(GraphMessage::Drag {
+                    frequency_ratio: sample_rate / 1000.0,
+                    gain_delta: 0.0,
+                }),
+                EqMessage::Graph(GraphMessage::End),
+            ]
+        };
+        for message in messages {
+            dispatch(&mut ui, &source, message);
+        }
+        let model = ui.model.borrow();
+        assert!(model.config.validate(sample_rate).is_ok());
+        let persisted = source.params.snapshot();
+        assert!(persisted.validate(sample_rate).is_ok());
+        assert!(
+            (persisted.bands[0].frequency_hz - model.config.bands[0].frequency_hz).abs() < 1.0e-8
+        );
+        assert!((sample_rate * 0.499 - persisted.bands[0].frequency_hz).abs() < 0.01);
+        assert!(!model.has_gesture());
+        let frequency_id = crate::params::BAND_BASE + 3;
+        let events = source.events.lock().unwrap();
+        for kind in ['b', 'e'] {
+            assert_eq!(
+                events
+                    .iter()
+                    .filter(|(event, id)| *event == kind && *id == frequency_id)
+                    .count(),
+                1
+            );
+        }
+    }
+}
+
+#[test]
 fn band_hud_is_selection_driven_and_secondary_menus_are_exclusive() {
     let source = Harness::new();
     let mut ui = fit_ui(&source);
