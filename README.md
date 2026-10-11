@@ -22,6 +22,27 @@ can use the DMG's format folders and installation shortcuts. Quit and restart
 the DAW after installing. Heron bundles its own checksum-pinned VST3 release and
 upgrades it with application updates.
 
+## Plug-in screenshots
+
+Native editors on macOS. Gain, Sine and Metronome show their default settings;
+EQ shows a three-band example with the spectrum display.
+
+### Heron Gain
+
+<img src="assets/screenshots/heron-gain.png" alt="Heron Gain editor with gain control and stereo output meters" width="380">
+
+### Heron EQ
+
+<img src="assets/screenshots/heron-eq.png" alt="Heron EQ editor with three EQ bands, a spectrum display and selected-band controls" width="1040">
+
+### Heron Sine
+
+<img src="assets/screenshots/heron-sine.png" alt="Heron Sine editor with output, attack and release controls" width="520">
+
+### Heron Metronome
+
+<img src="assets/screenshots/heron-metronome.png" alt="Heron Metronome editor with output, accent tone, beat tone and decay controls" width="600">
+
 ## Development
 
 Use a login shell and the locked `mise` toolchain. On Windows, use PowerShell 7.
