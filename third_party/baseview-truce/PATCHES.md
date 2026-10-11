@@ -1,4 +1,4 @@
-# Heron patch: Windows embedded host scale
+# Heron patches: native editor scale and focus
 
 Source: published `baseview-truce` **0.1.1-truce.13**, using its normalized Cargo
 manifest and published MIT/Apache-2.0 licenses.
@@ -7,7 +7,9 @@ manifest and published MIT/Apache-2.0 licenses.
 - Upstream repository: <https://github.com/truce-audio/baseview>
 - Upstream commit: `a860a62b6471a549f113026b236242a90a3c9d8e`
 
-Implementation changes are confined to `src/win/window.rs`:
+## Windows embedded host scale and focus
+
+Windows implementation changes are confined to `src/win/window.rs`:
 
 - A window opened with a pinned `ScaleFactor` accepts valid host scale updates.
   The scale cell updates immediately so queued logical resizes use the latest
@@ -28,9 +30,36 @@ Implementation changes are confined to `src/win/window.rs`:
 
 `src/window.rs` documents the corrected public scale-update behavior.
 
-This pairs with Heron's `truce-gui` patch. Other platforms and all unrelated
-source are unchanged. Registry cache markers, the packaged lockfile and VCS
+This pairs with Heron's `truce-gui` patch. Registry cache markers, the packaged lockfile and VCS
 metadata are omitted; provenance from the published VCS metadata is recorded
 above. Remove both patches together after an upstream release supplies the
 equivalent Windows behavior and Heron's packaged native-editor and
 `native_focus` regressions pass with that release.
+
+## macOS Retina backing notifications
+
+`src/macos/view.rs` registers AppKit's argument-free
+[`viewDidChangeBackingProperties`](https://developer.apple.com/documentation/appkit/nsview/viewdidchangebackingproperties%28%29?language=objc)
+selector and matching callback signature. The published selector included a
+colon, so AppKit never called it when a view attached or changed display backing.
+The callback preserves NSView's superclass behavior, waits until the view is
+attached (and its baseview state initialized), and delivers the updated physical
+size through the existing deferrable event queue. Reentrant native layout cannot
+borrow an already-active window handler.
+
+The paired `truce-iced` patch initializes from the attached parent's backing
+scale and prevents host zoom from replacing macOS pixel density. The owned
+`heron-eq` `native_scale` regression checks native attach notifications and actual
+Metal drawable extents on a Retina Mac:
+
+```sh
+cargo test --locked -p heron-eq --test native_scale -- --ignored
+```
+
+Before the patches, a host's 1x content-scale announcement produced a 1120×760
+drawable in a 2240×1520 Retina backing. Afterward the drawable is 2240×1520
+through attach and late 1x/1.25x announcements, and 2560×1640 after a resize to
+1280×820 logical points. Moving the live editor between 1x and 2x displays is the
+additional manual check for an actual display transition. Remove this macOS
+patch with its Iced counterpart when a coupled upstream release supplies the
+same behavior and the native regression passes.

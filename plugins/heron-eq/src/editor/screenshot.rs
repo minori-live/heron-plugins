@@ -389,6 +389,7 @@ fn render_scene<const SCENE: u8>(directory: &std::path::Path, name: &str, params
     for (size, suffix) in [((1120, 760), ""), ((1040, 700), "-minimum")] {
         NODE_LABELS.lock().expect("node label measurements").clear();
         let mut editor = IcedEditor::<EqParams, EvidenceScene<SCENE>>::new(params.clone(), size);
+        editor.set_scale_factor(1.0);
         let erased: Arc<dyn Params> = params.clone();
         let (pixels, width, height) = editor.screenshot(erased).expect("native scene screenshot");
         assert_eq!((width, height), size, "native evidence dimensions");
@@ -405,4 +406,24 @@ fn render_scene<const SCENE: u8>(directory: &std::path::Path, name: &str, params
         )
         .expect("native node label bounds file");
     }
+}
+
+/// The selected-band controls and compact bars retain logical size on Retina.
+#[test]
+#[ignore = "manual native 2x render evidence; requires a GPU"]
+fn render_retina_selected_editor() {
+    let directory = std::path::PathBuf::from("../../out/eq-native");
+    std::fs::create_dir_all(&directory).expect("output directory");
+    let (params, _) = processed_fixture(&fitted_preset());
+    let mut editor = IcedEditor::<EqParams, EvidenceScene<1>>::new(params.clone(), (1040, 700));
+    editor.set_scale_factor(2.0);
+    let erased: Arc<dyn Params> = params;
+    let (pixels, width, height) = editor.screenshot(erased).expect("Retina scene screenshot");
+    assert_eq!((width, height), (2080, 1400));
+    truce::core::screenshot::save_png(
+        &directory.join("selected-minimum-2x.png"),
+        &pixels,
+        width,
+        height,
+    );
 }

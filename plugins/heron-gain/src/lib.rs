@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use heron_plugin_ui::{level_meter, parameter_knob};
 use truce::prelude::*;
-use truce_iced::iced::widget::{Column, Row, container, text};
-use truce_iced::iced::{Alignment, Element, Length, alignment};
-use truce_iced::{IcedEditor, IcedPlugin, IntoElement, Message, ParamCache};
+use truce_iced::IcedEditor;
+
+mod editor;
+pub use editor::{GainMessage, GainUi};
 
 use GainParamsParamId as P;
 
@@ -24,70 +24,6 @@ pub struct GainParams {
     pub meter_left: MeterSlot,
     #[meter]
     pub meter_right: MeterSlot,
-}
-
-/// Fixed Heron instrument-panel UI.
-pub struct GainUi;
-
-#[derive(Clone, Debug)]
-pub enum GainMessage {}
-
-impl IcedPlugin<GainParams> for GainUi {
-    type Message = GainMessage;
-
-    fn new(_params: Arc<GainParams>) -> Self {
-        Self
-    }
-
-    fn view<'a>(
-        &'a self,
-        params: &'a ParamCache<GainParams>,
-    ) -> Element<'a, Message<Self::Message>> {
-        let palette = heron_plugin_ui::palette();
-        let title = text("Heron  /  GAIN")
-            .size(heron_plugin_ui::type_size::BODY_COMPACT)
-            .color(palette.text);
-        let value = text(params.label(P::Gain)).size(30).color(palette.audio);
-        let control = Column::new()
-            .push(title)
-            .push(value)
-            .push(
-                parameter_knob(P::Gain, params)
-                    .label("GAIN")
-                    .size(126.0)
-                    .el(),
-            )
-            .spacing(heron_plugin_ui::space::MD)
-            .align_x(Alignment::Center);
-        let meters = level_meter(&[P::MeterLeft, P::MeterRight], params)
-            .size(34.0, 180.0)
-            .el();
-        let surface = Row::new()
-            .push(control)
-            .push(meters)
-            .spacing(heron_plugin_ui::space::XL)
-            .align_y(alignment::Vertical::Center);
-        container(surface)
-            .padding(heron_plugin_ui::space::XL)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(Alignment::Center)
-            .align_y(Alignment::Center)
-            .style(move |_| container::Style {
-                background: Some(palette.canvas.into()),
-                text_color: Some(palette.text),
-                ..Default::default()
-            })
-            .into()
-    }
-
-    fn title(&self) -> String {
-        String::from("Heron Gain")
-    }
-
-    fn theme(&self) -> truce_iced::iced::Theme {
-        heron_plugin_ui::theme()
-    }
 }
 
 /// Stateless gain processor.

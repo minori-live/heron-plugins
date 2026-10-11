@@ -4,19 +4,16 @@ use heron_plugin_dsp::eq::EqShape;
 use truce_iced::{
     Message,
     iced::{
-        Alignment, Color, Element, Length, Point, Rectangle, Renderer, Theme, keyboard, mouse,
+        Alignment, Element, Length, Point, Rectangle, Renderer, Theme, keyboard, mouse,
         widget::{
             Canvas, Column, button,
-            canvas::{self, Event, Frame, Geometry, LineCap, Path, Stroke, path::Arc},
+            canvas::{self, Event, Frame, Geometry},
             container, text, text_input,
         },
     },
 };
 
 use super::{EqMessage, EqUi, maximum_band_frequency, model::Number, style};
-
-const START: f32 = std::f32::consts::PI * 0.75;
-const END: f32 = std::f32::consts::PI * 2.25;
 
 #[cfg(test)]
 thread_local! {
@@ -247,69 +244,18 @@ impl canvas::Program<Message<EqMessage>> for Rotary {
             };
             painted.set(painted.get() | bit);
         });
-        let colors = style::palette();
         let mut frame = Frame::new(renderer, bounds.size());
-        let center = Point::new(bounds.width * 0.5, bounds.height * 0.5);
         let hovered = cursor
             .position_in(bounds)
-            .and_then(|point| self.hit_field(point, bounds));
-        let arc = |radius: f32, from: f32, to: f32| {
-            Path::new(|path| {
-                path.arc(Arc {
-                    center,
-                    radius,
-                    start_angle: truce_iced::iced::Radians(from),
-                    end_angle: truce_iced::iced::Radians(to),
-                });
-            })
-        };
-        let stroke = |color: Color, width| {
-            Stroke::default()
-                .with_color(color)
-                .with_width(width)
-                .with_line_cap(LineCap::Round)
-        };
-        frame.fill(
-            &Path::circle(Point::new(center.x, center.y + 2.0), 23.0),
-            Color::from_rgba(0.0, 0.0, 0.0, 0.3),
+            .and_then(|point| self.hit_field(point, bounds))
+            .is_some();
+        heron_plugin_ui::rotary::draw(
+            &mut frame,
+            self.domain.normalize(self.value) as f32,
+            (self.field == Number::Gain).then_some(0.5),
+            self.enabled,
+            hovered || state.drag.is_some(),
         );
-        frame.fill(&Path::circle(center, 23.0), colors.control);
-        frame.fill(&Path::circle(center, 19.0), colors.surface);
-        frame.stroke(&arc(23.0, START, END), stroke(colors.border, 2.5));
-        let angle = START + self.domain.normalize(self.value) as f32 * (END - START);
-        let zero = if self.field == Number::Gain {
-            (START + END) * 0.5
-        } else {
-            START
-        };
-        frame.stroke(
-            &arc(23.0, zero.min(angle), zero.max(angle)),
-            stroke(
-                if self.enabled {
-                    colors.action
-                } else {
-                    colors.text_muted
-                },
-                2.5,
-            ),
-        );
-        frame.stroke(
-            &Path::line(
-                center,
-                Point::new(center.x + angle.cos() * 16.0, center.y + angle.sin() * 16.0),
-            ),
-            stroke(
-                if self.enabled {
-                    colors.text
-                } else {
-                    colors.text_muted
-                },
-                2.0,
-            ),
-        );
-        if hovered.is_some() || state.drag.is_some() {
-            frame.stroke(&arc(25.0, START, END), stroke(colors.focus, 1.0));
-        }
         vec![frame.into_geometry()]
     }
 

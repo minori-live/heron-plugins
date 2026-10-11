@@ -3,11 +3,11 @@
 use std::f32::consts::TAU;
 use std::sync::Arc;
 
-use heron_plugin_ui::parameter_knob;
 use truce::prelude::*;
-use truce_iced::iced::widget::{Column, Row, Space, container, text};
-use truce_iced::iced::{Alignment, Element, Length, alignment};
-use truce_iced::{IcedEditor, IcedPlugin, IntoElement, Message, ParamCache};
+use truce_iced::IcedEditor;
+
+mod editor;
+pub use editor::{SineMessage, SineUi};
 
 use SineParamsParamId as P;
 
@@ -178,99 +178,6 @@ impl SineDspState {
 
     fn active_voice_count(&self) -> usize {
         self.voices.iter().filter(|voice| voice.active).count()
-    }
-}
-
-pub struct SineUi;
-
-#[derive(Clone, Debug)]
-pub enum SineMessage {}
-
-impl IcedPlugin<SineParams> for SineUi {
-    type Message = SineMessage;
-
-    fn new(_params: Arc<SineParams>) -> Self {
-        Self
-    }
-
-    fn view<'a>(
-        &'a self,
-        params: &'a ParamCache<SineParams>,
-    ) -> Element<'a, Message<Self::Message>> {
-        let palette = heron_plugin_ui::palette();
-        let voices = (params.meter(P::ActiveVoices) * MAX_VOICES as f32).round() as u8;
-        let pitch = (params.meter(P::RecentPitch) * 127.0).round() as u8;
-        let header = Row::new()
-            .push(
-                text("Heron  /  SINE")
-                    .size(heron_plugin_ui::type_size::PANEL_TITLE)
-                    .color(palette.text),
-            )
-            .push(Space::new().width(Length::Fill))
-            .push(
-                text(format!("{voices:02} VOICES   MIDI {pitch:03}"))
-                    .size(heron_plugin_ui::type_size::BODY_COMPACT)
-                    .color(palette.midi),
-            );
-        let trace = container(
-            text("∿      ∿      ∿      ∿      ∿")
-                .size(38)
-                .color(palette.midi),
-        )
-        .width(Length::Fill)
-        .height(Length::Fixed(92.0))
-        .align_x(Alignment::Center)
-        .align_y(Alignment::Center)
-        .style(move |_| container::Style {
-            background: Some(palette.surface.into()),
-            ..Default::default()
-        });
-        let controls = Row::new()
-            .push(
-                parameter_knob(P::Output, params)
-                    .label("OUTPUT")
-                    .size(76.0)
-                    .el(),
-            )
-            .push(
-                parameter_knob(P::Attack, params)
-                    .label("ATTACK")
-                    .size(76.0)
-                    .el(),
-            )
-            .push(
-                parameter_knob(P::Release, params)
-                    .label("RELEASE")
-                    .size(76.0)
-                    .el(),
-            )
-            .spacing(heron_plugin_ui::space::XL)
-            .align_y(alignment::Vertical::Center);
-        container(
-            Column::new()
-                .push(header)
-                .push(trace)
-                .push(controls)
-                .spacing(heron_plugin_ui::space::LG)
-                .align_x(Alignment::Center),
-        )
-        .padding(heron_plugin_ui::space::XL)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(move |_| container::Style {
-            background: Some(palette.canvas.into()),
-            text_color: Some(palette.text),
-            ..Default::default()
-        })
-        .into()
-    }
-
-    fn title(&self) -> String {
-        String::from("Heron Sine")
-    }
-
-    fn theme(&self) -> truce_iced::iced::Theme {
-        heron_plugin_ui::theme()
     }
 }
 

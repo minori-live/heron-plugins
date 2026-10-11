@@ -112,31 +112,21 @@ impl EqUi {
                     }),
             );
         }
-        let content = Column::new()
-            .push(chrome::top(self))
-            .push(
-                container(plot)
-                    .id("heron-eq-graph")
-                    .width(Length::Fill)
-                    .height(Length::Fill),
-            )
-            .push(chrome::bottom(
+        let content = heron_plugin_ui::chrome::editor(
+            chrome::top(self),
+            container(plot)
+                .id("heron-eq-graph")
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into(),
+            chrome::bottom(
                 self,
                 &model,
                 live.output_peak,
                 active.telemetry.processing_pending() || projection.pending,
                 active.telemetry.processing_error().is_some() || projection.failed,
-            ));
-        let colors = style::palette();
-        let content = container(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .style(move |_| container::Style {
-                background: Some(colors.canvas.into()),
-                text_color: Some(colors.text),
-                ..Default::default()
-            })
-            .into();
+            ),
+        );
         if self.notice.is_some() {
             notice::intercept_escape(content)
         } else {
