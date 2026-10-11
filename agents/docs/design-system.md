@@ -67,12 +67,37 @@ Heron's bundled web font families or localization pipeline migrated with them.
 
 ## Current theme behavior and exceptions
 
-`crates/iced-ui` defines dark and light appearances. The shared plug-in
-`palette()`/`theme()` deliberately select dark appearance. Heron EQ has an owned
-semantic palette override in `plugins/heron-eq/src/editor/style.rs`, including
-its neutral spectrum and band colors. This existing product identity is an
-explicit local palette, not permission to introduce arbitrary new colors in
-unrelated controls.
+`crates/iced-ui` defines the semantic roles and base dark/light appearances.
+`plugins/heron-plugin-ui/src/style.rs` owns the fixed-dark suite palette and
+styles extracted from Heron EQ. EQ, Gain, Sine and Metronome all use that same
+palette and theme. EQ retains only its spectrum and band colors locally.
+
+The established EQ visual foundation is:
+
+| Role                            | Color / logical size  |
+| ------------------------------- | --------------------- |
+| Canvas                          | `#242426`             |
+| Bar / surface                   | `#2B2B2E`             |
+| Raised panel / control          | `#343438`             |
+| Primary / muted text            | `#E5E4DF` / `#A0A0A1` |
+| Action / focus                  | `#EEE2AF`             |
+| Header / footer                 | 44 / 40 units         |
+| Product title / value / caption | 21 / 12 / 11 units    |
+
+Shared `chrome` composes the product title, header, footer and editor surface.
+`rotary::draw` owns the EQ dial silhouette, recessed face, pointer and value arc;
+EQ keeps its band/domain gestures while `ParameterKnob` adapts ordinary host
+parameters. Labels appear above the dial and shaped text values below it.
+Bipolar/unity references are supplied by the caller, not inferred by drawing.
+`LevelMeter` and `level_meter_values` share the slim rounded, neutral peak
+indicator, a -60..0 dB display range and red clipping indication.
+
+Compact editors keep every parameter visible in their existing logical sizes:
+Gain 380×260, Sine 520×300 and Metronome 600×300. Gain centers its gain control
+beside the stereo output meter. Sine groups output and envelope controls above
+voice/pitch telemetry. Metronome retains output, accent tone, beat tone and decay controls
+with its MIDI trigger mapping in the footer. Decorative waveform/pulse text and
+duplicated large parameter values are not part of the suite visual language.
 
 Do not claim a host theme switch propagates to plug-in content or that the suite
 has validated light editors merely because a light palette exists. If light
@@ -162,7 +187,10 @@ See [Heron EQ](heron-eq.md) for finite-response and spectrum-display contracts.
 Painting and input share the accepted logical/physical scale. Review repeated
 resize, host zoom/DPI and focus transitions against live native attachments;
 PNG dimensions alone do not prove interactive bounds. Preserve widget identity
-and retained interaction state across layout changes.
+and retained interaction state across layout changes. On macOS, raster targets
+must match the attached view's backing pixel size even when the host reports a
+content scale of 1.0; logical AppKit points and physical Retina pixels are not
+interchangeable.
 
 ## Accessibility requirement and honest evidence
 
@@ -209,7 +237,24 @@ attachment tests.
   rendered appearance from actual input/lifetime validation.
 
 Follow [testing policy](testing.md), [engineering standards](engineering-standards.md)
-and [CI operations](ci.md). Targeted EQ native render/event tests are review
-surfaces; there is currently no independent all-control native catalog or
-automated accessibility certification. Cross-platform VST3/AUv2 releases use
+and [CI operations](ci.md). Targeted EQ native render/event tests and each compact editor's ignored
+`render_editor_evidence` test provide review surfaces at explicit 1×/2× render
+scales; there is no automated accessibility certification. Offscreen rendering
+checks composition, while live attachment checks the platform scale contract. Cross-platform VST3/AUv2 releases use
 final bundle validation; AAX remains disabled.
+
+### Native visual review commands
+
+```sh
+cargo test --locked -p heron-gain -p heron-sine -p heron-metronome render_editor_evidence -- --ignored
+cargo test --locked -p heron-eq --lib render_ -- --ignored
+cargo test --locked -p heron-eq --test native_scale -- --ignored
+```
+
+The first command writes idle-state 1×/2× renders to `out/plugin-native/`.
+EQ writes its existing minimum/full-size scenarios plus a selected-band Retina
+render to `out/eq-native/`. These use the native Iced/Metal renderer; compact
+screenshots have idle meter caches and are not live signal acceptance evidence.
+`native_scale` opens a real EQ child window on a Retina macOS desktop and checks
+its Metal drawable against actual backing pixels before/after host scale calls
+and resize. Keep artifacts outside the documentation tree.

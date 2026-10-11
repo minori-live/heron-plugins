@@ -12,12 +12,13 @@ use truce_iced::{
     Message,
     iced::{
         Alignment, Element, Length,
-        widget::{Button, Row, Space, button, container, text, tooltip},
+        widget::{Button, Row, Space, button, text, tooltip},
     },
 };
 
-pub const TOP_HEIGHT: f32 = 44.0;
-pub const BOTTOM_HEIGHT: f32 = 40.0;
+#[cfg(test)]
+pub const TOP_HEIGHT: f32 = heron_plugin_ui::chrome::HEADER_HEIGHT;
+pub const BOTTOM_HEIGHT: f32 = heron_plugin_ui::chrome::FOOTER_HEIGHT;
 
 pub fn entry<'a>(
     label: impl Into<String>,
@@ -31,27 +32,17 @@ pub fn entry<'a>(
 }
 
 pub fn top<'a>(ui: &EqUi) -> Element<'a, Message<EqMessage>> {
-    let colors = style::palette();
-    let bar = Row::new()
-        .push(text("Heron").size(21.0).color(colors.text))
-        .push(text("EQ").size(21.0).color(colors.action))
-        .push(Space::new().width(Length::Fill))
-        .push(icons::button(
+    heron_plugin_ui::chrome::header(
+        "EQ",
+        icons::button(
             Icon::More,
             "Display & tools",
             EqMessage::Menu(Panel::Tools),
             ui.panel_for_view() == Some(Panel::Tools),
-        ))
-        .spacing(2)
-        .align_y(Alignment::Center);
-    container(bar)
-        .id("heron-eq-topbar")
-        .padding([0, 14])
-        .height(Length::Fixed(TOP_HEIGHT))
-        .width(Length::Fill)
-        .center_y(Length::Fixed(TOP_HEIGHT))
-        .style(style::bar)
-        .into()
+        ),
+    )
+    .id("heron-eq-topbar")
+    .into()
 }
 
 pub fn bottom<'a>(
@@ -117,13 +108,8 @@ pub fn bottom<'a>(
         .push(meters::stereo(peaks))
         .spacing(5)
         .align_y(Alignment::Center);
-    container(bar)
+    heron_plugin_ui::chrome::footer(bar.into())
         .id("heron-eq-footer")
-        .padding([0, 10])
-        .height(Length::Fixed(BOTTOM_HEIGHT))
-        .width(Length::Fill)
-        .center_y(Length::Fixed(BOTTOM_HEIGHT))
-        .style(style::bar)
         .into()
 }
 

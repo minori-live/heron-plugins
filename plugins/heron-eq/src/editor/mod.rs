@@ -47,7 +47,7 @@ use truce_iced::{
     IcedEditor, IcedPlugin, Message, ParamCache,
     iced::{
         Element, Event, Length, Subscription, Task, event, keyboard,
-        widget::{Canvas, Column, container},
+        widget::{Canvas, container},
     },
 };
 
@@ -407,10 +407,6 @@ fn read_extras(params: &EqParams) -> Extras {
 /// The graph still displays the full Nyquist domain.
 fn maximum_band_frequency(sample_rate: f64) -> f64 {
     (sample_rate * 0.499).next_down().min(30_000.0)
-}
-
-fn peak_db(peak: f32) -> f32 {
-    20.0 * peak.max(1.0e-6).log10()
 }
 
 fn parse_number(text: &str) -> Option<f64> {

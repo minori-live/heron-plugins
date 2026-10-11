@@ -208,8 +208,8 @@ unsafe fn create_view_class() -> &'static AnyClass {
         class.add_method(sel!(scrollWheel:), scroll_wheel as extern "C-unwind" fn(_, _, _) -> _);
 
         class.add_method(
-            sel!(viewDidChangeBackingProperties:),
-            view_did_change_backing_properties as extern "C-unwind" fn(_, _, _) -> _,
+            sel!(viewDidChangeBackingProperties),
+            view_did_change_backing_properties as extern "C-unwind" fn(_, _) -> _,
         );
         // `setFrameSize:` fires whenever AppKit mutates our frame -
         // parent-autoresize, host-driven `setFrameSize:`, or our
@@ -318,12 +318,17 @@ extern "C-unwind" fn dealloc(this: &mut AnyObject, _sel: Sel) {
     unsafe { objc_disposeClassPair(class as *const _ as *mut _) }
 }
 
-extern "C-unwind" fn view_did_change_backing_properties(this: &NSView, _: Sel, _: &AnyObject) {
-    let ns_window = this.window();
+extern "C-unwind" fn view_did_change_backing_properties(this: &NSView, _: Sel) {
+    // SAFETY: invoke NSView's implementation for this NSView subclass on AppKit's thread.
+    unsafe {
+        let _: () = msg_send![super(this, NSView::class()), viewDidChangeBackingProperties];
+    }
+    let Some(ns_window) = this.window() else {
+        return;
+    };
+    let scale_factor = ns_window.backingScaleFactor();
 
-    let scale_factor: f64 = ns_window.map(|w| w.backingScaleFactor()).unwrap_or(1.0);
-
-    // SAFETY: This is our own view instance
+    // SAFETY: our view is attached only after Window::init installs its state.
     let state = unsafe { WindowState::from_view(this) };
 
     let bounds = this.bounds();
@@ -339,7 +344,9 @@ extern "C-unwind" fn view_did_change_backing_properties(this: &NSView, _: Sel, _
     // other platform implementations
     if new_window_info.physical_size() != window_info.physical_size() {
         state.window_info.set(new_window_info);
-        state.trigger_event(Event::Window(WindowEvent::Resized(new_window_info)));
+        // AppKit can update backing properties during a render/layout callback.
+        // Preserve the notification until the active handler borrow completes.
+        state.trigger_deferrable_event(Event::Window(WindowEvent::Resized(new_window_info)));
     }
 }
 

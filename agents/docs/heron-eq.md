@@ -98,6 +98,13 @@ that survives after the new layout is drawn. Windows forced-size coordinate
 remapping is reserved for the platform-scaling fallback, whose existing mapping
 must remain valid when the accepted child size is unchanged.
 
+On macOS the attached NSWindow's backing scale owns raster density. A host's
+content-scale callback of 1.0 must not replace a Retina window's 2.0 pixel scale.
+The Iced editor initializes density from its actual parent, and baseview delivers
+AppKit's argument-free `viewDidChangeBackingProperties` callback for subsequent
+backing changes. Host content zoom is distinct from pixel density; this fix does
+not add a new zoom mode or change parameter gesture coordinates.
+
 Sidechain Match validates its candidate at the current sample rate before
 committing settings and resetting selection. Failure retains all bands, output
 settings, selection and any existing gesture, with no parameter apply or host
@@ -233,13 +240,21 @@ cargo test --locked -p heron-eq --features rt-paranoid
 cargo clippy --locked -p heron-plugin-dsp -p heron-eq --all-targets --features heron-eq/rt-paranoid -- -D warnings
 node scripts/build.ts --no-aax
 cargo test --locked -p heron-eq --test native_focus -- --ignored --nocapture
+cargo test --locked -p heron-eq --test native_scale -- --ignored
+cargo test --locked -p heron-eq --lib render_retina_selected_editor -- --ignored
 cargo test --locked -p heron-eq --lib render_fit_and_full_native_editors -- --ignored --nocapture
 ```
 
 `native_focus` requires an interactive Windows desktop and is ignored in normal
 CI. It checks the migrated toolkit's actual focus-loss event bridge in a native
-window. The renderer test needs a usable GPU and creates review artifacts under
-`out/eq-native/`; these manual checks require their own evidence.
+window. `native_scale` uses a main-thread AppKit harness on an interactive Retina
+macOS desktop. It reproduces a host-announced 1× scale and checks that the live
+Metal drawable matches the actual window's backing size, including a late host
+callback and resize. The renderer tests need a usable GPU and create review
+artifacts under `out/eq-native/`; their scale is explicit rather than inherited
+from the primary display. `render_retina_selected_editor` draws the 1040×700
+logical minimum into 2080×1400 physical pixels. These manual checks require their
+own evidence.
 
 Heron's actual VST3 host response and resize regressions remain in its
 `heron-audio-host` integration tests. Its browser fitting/export/cancellation

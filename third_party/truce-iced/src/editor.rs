@@ -720,6 +720,12 @@ impl<P: Params + 'static, M: IcedPlugin<P>> Editor for IcedEditor<P, M> {
         // overwrite a later host-reported scale.
         let host_driven_scale = matches!(scale_policy, baseview::WindowScalePolicy::ScaleFactor(_));
 
+        // macOS host content scale is expressed in logical points, independently
+        // of Retina pixels. Initialize from the actual parent (which may be on
+        // another screen than NSScreen.mainScreen) before creating the surface.
+        #[cfg(target_os = "macos")]
+        self.scale.set(crate::platform::query_backing_scale(&parent));
+
         // Everything the handler needs is moved into the builder
         // closure, which baseview runs on the handler's own thread. The
         // plugin model + `IcedRuntime` are built there so the handler
@@ -879,6 +885,15 @@ impl<P: Params + 'static, M: IcedPlugin<P>> Editor for IcedEditor<P, M> {
     }
 
     fn set_scale_factor(&mut self, factor: f64) {
+        // A live macOS editor follows NSWindow.backingScaleFactor via baseview.
+        // Host zoom must not replace that pixel density: doing so rasterizes a
+        // Retina view at 1x before AppKit stretches it to its 2x backing. Retain
+        // pre-open overrides for deterministic headless screenshots; open()
+        // replaces them with the actual parent's backing scale.
+        #[cfg(target_os = "macos")]
+        if self.baseview_window.is_some() {
+            return;
+        }
         // Write to the shared cell; the runtime's `tick()` picks up the
         // change on its next frame and reconfigures the surface and
         // viewport.

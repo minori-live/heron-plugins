@@ -3,11 +3,11 @@
 use std::f32::consts::TAU;
 use std::sync::Arc;
 
-use heron_plugin_ui::parameter_knob;
 use truce::prelude::*;
-use truce_iced::iced::widget::{Column, Row, Space, container, text};
-use truce_iced::iced::{Alignment, Element, Length, alignment};
-use truce_iced::{IcedEditor, IcedPlugin, IntoElement, Message, ParamCache};
+use truce_iced::IcedEditor;
+
+mod editor;
+pub use editor::{MetronomeMessage, MetronomeUi};
 
 use MetronomeParamsParamId as P;
 
@@ -129,99 +129,6 @@ impl MetronomeDspState {
 
     fn active_voice_count(&self) -> usize {
         self.voices.iter().filter(|voice| voice.active).count()
-    }
-}
-
-pub struct MetronomeUi;
-
-#[derive(Clone, Debug)]
-pub enum MetronomeMessage {}
-
-impl IcedPlugin<MetronomeParams> for MetronomeUi {
-    type Message = MetronomeMessage;
-
-    fn new(_params: Arc<MetronomeParams>) -> Self {
-        Self
-    }
-
-    fn view<'a>(
-        &'a self,
-        params: &'a ParamCache<MetronomeParams>,
-    ) -> Element<'a, Message<Self::Message>> {
-        let palette = heron_plugin_ui::palette();
-        let header = Row::new()
-            .push(
-                text("Heron  /  METRONOME")
-                    .size(heron_plugin_ui::type_size::PANEL_TITLE)
-                    .color(palette.text),
-            )
-            .push(Space::new().width(Length::Fill))
-            .push(
-                text("C6  ACCENT   ·   C5  BEAT")
-                    .size(heron_plugin_ui::type_size::CONTROL)
-                    .color(palette.midi),
-            );
-        let pulse = container(text("●     ·     ·     ·").size(34).color(palette.midi))
-            .width(Length::Fill)
-            .height(Length::Fixed(86.0))
-            .align_x(Alignment::Center)
-            .align_y(Alignment::Center)
-            .style(move |_| container::Style {
-                background: Some(palette.surface.into()),
-                ..Default::default()
-            });
-        let controls = Row::new()
-            .push(
-                parameter_knob(P::Output, params)
-                    .label("OUTPUT")
-                    .size(72.0)
-                    .el(),
-            )
-            .push(
-                parameter_knob(P::AccentTone, params)
-                    .label("ACCENT")
-                    .size(72.0)
-                    .el(),
-            )
-            .push(
-                parameter_knob(P::BeatTone, params)
-                    .label("BEAT")
-                    .size(72.0)
-                    .el(),
-            )
-            .push(
-                parameter_knob(P::Decay, params)
-                    .label("DECAY")
-                    .size(72.0)
-                    .el(),
-            )
-            .spacing(heron_plugin_ui::space::XL)
-            .align_y(alignment::Vertical::Center);
-        container(
-            Column::new()
-                .push(header)
-                .push(pulse)
-                .push(controls)
-                .spacing(heron_plugin_ui::space::LG)
-                .align_x(Alignment::Center),
-        )
-        .padding(heron_plugin_ui::space::XL)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(move |_| container::Style {
-            background: Some(palette.canvas.into()),
-            text_color: Some(palette.text),
-            ..Default::default()
-        })
-        .into()
-    }
-
-    fn title(&self) -> String {
-        String::from("Heron Metronome")
-    }
-
-    fn theme(&self) -> truce_iced::iced::Theme {
-        heron_plugin_ui::theme()
     }
 }
 
