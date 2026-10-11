@@ -1,6 +1,7 @@
 //! Display spectra use monotone cubic segments, retaining measured extrema.
 //! This is editor-only geometry; neither audio nor EQ Match uses these paths.
 use super::geometry::Plot;
+use crate::telemetry::SpectrumSnapshot;
 use truce_iced::iced::{
     Color, Point,
     widget::canvas::{Frame, Path, Stroke},
@@ -16,27 +17,12 @@ pub struct Appearance {
 pub fn draw(
     frame: &mut Frame,
     plot: Plot,
-    frequencies: &[f32],
+    spectrum: &SpectrumSnapshot,
     values: &[f32],
     floor_db: f32,
     appearance: Appearance,
 ) {
-    if frequencies.len() != values.len() {
-        return;
-    }
-    let mut points = Vec::<Point>::with_capacity(frequencies.len());
-    for (&frequency, &value) in frequencies.iter().zip(values) {
-        if !(10.0..=30_000.0).contains(&frequency) || !value.is_finite() {
-            continue;
-        }
-        let point = Point::new(
-            plot.frequency_x(frequency),
-            plot.spectrum_y(value, floor_db),
-        );
-        if points.last().is_none_or(|previous| point.x > previous.x) {
-            points.push(point);
-        }
-    }
+    let points = display_points(plot, spectrum, values, floor_db);
     let (Some(&first), Some(&last)) = (points.first(), points.last()) else {
         return;
     };
@@ -69,6 +55,33 @@ pub fn draw(
             .with_color(appearance.color)
             .with_width(appearance.width),
     );
+}
+
+fn display_points(
+    plot: Plot,
+    spectrum: &SpectrumSnapshot,
+    values: &[f32],
+    floor_db: f32,
+) -> Vec<Point> {
+    let frequencies = &spectrum.frequency_hz;
+    if frequencies.len() != values.len() {
+        return Vec::new();
+    }
+    let maximum = (spectrum.sample_rate * 0.5) as f32;
+    let mut points = Vec::<Point>::with_capacity(frequencies.len());
+    for (&frequency, &value) in frequencies.iter().zip(values) {
+        if !(10.0..=maximum).contains(&frequency) || !value.is_finite() {
+            continue;
+        }
+        let point = Point::new(
+            plot.frequency_x(frequency),
+            plot.spectrum_y(value, floor_db),
+        );
+        if points.last().is_none_or(|previous| point.x > previous.x) {
+            points.push(point);
+        }
+    }
+    points
 }
 
 fn secant(a: Point, b: Point) -> f32 {
@@ -116,6 +129,29 @@ fn segment(points: &[Point], index: usize) -> [Point; 3] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn frozen_spectra_stop_at_the_current_sample_rates_nyquist() {
+        let plot = Plot::new(truce_iced::iced::Size::new(1040.0, 616.0), 12.0, 32_000.0);
+        let mut spectrum = SpectrumSnapshot {
+            sample_rate: 32_000.0,
+            frequency_hz: vec![10.0, 1000.0, 16_000.0, 40_000.0, 48_000.0],
+            ..SpectrumSnapshot::default()
+        };
+        let values = [-60.0, -30.0, -20.0, -10.0, -5.0];
+        let points = display_points(plot, &spectrum, &values, -120.0);
+        assert_eq!(points.len(), 3);
+        assert_eq!(points.last().unwrap().x, plot.frequency_x(16_000.0));
+        spectrum.sample_rate = 96_000.0;
+        let plot = Plot::new(
+            truce_iced::iced::Size::new(1040.0, 616.0),
+            12.0,
+            spectrum.sample_rate,
+        );
+        let points = display_points(plot, &spectrum, &values, -120.0);
+        assert_eq!(points.len(), values.len());
+        assert_eq!(points.last().unwrap().x, plot.bounds.x + plot.bounds.width);
+    }
 
     #[test]
     fn rounded_spectrum_retains_narrow_peaks_without_inventing_extrema() {

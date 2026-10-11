@@ -42,6 +42,40 @@ fn assert_same_spectrum(actual: &SpectrumSnapshot, expected: &SpectrumSnapshot) 
 }
 
 #[test]
+fn high_sample_rate_analysis_retains_real_audio_above_thirty_kilohertz() {
+    for (sample_rate, frequency) in [(96_000.0, 40_000.0), (192_000.0, 80_000.0)] {
+        let mut analyzer = SpectrumAnalyzer::new();
+        analyzer
+            .configure(AnalyzerConfig {
+                speed: AnalyzerSpeed::Off,
+                ..AnalyzerConfig::default()
+            })
+            .unwrap();
+        measure(&mut analyzer, 4096, sample_rate, frequency, 0.5);
+        let raw = analyzer.raw_snapshot();
+        let display = analyzer.display_snapshot();
+        assert!((f64::from(*raw.frequency_hz.last().unwrap()) - sample_rate * 0.5).abs() < 0.02);
+        let measured = f64::from(raw.frequency_hz[peak(&raw)]);
+        assert!((measured / frequency - 1.0).abs() < 0.025);
+        assert!((raw.pre_db[peak(&raw)] + 6.0206).abs() < 0.8);
+        let measured = f64::from(display.frequency_hz[peak(&display)]);
+        assert!((measured / frequency - 1.0).abs() < 0.025);
+    }
+}
+
+#[test]
+fn nyquist_bin_reports_its_actual_amplitude_without_mirrored_bin_gain() {
+    let mut analyzer = SpectrumAnalyzer::new();
+    assert!(analyzer.capture_window(4096, 96_000.0, |sequence| {
+        let value = if sequence % 2 == 0 { 0.5 } else { -0.5 };
+        Some([value; 6])
+    }));
+    let raw = analyzer.raw_snapshot();
+    assert!((raw.frequency_hz.last().unwrap() - 48_000.0).abs() < 0.02);
+    assert!((raw.pre_db.last().unwrap() + 6.0206).abs() < 0.01);
+}
+
+#[test]
 fn every_resolution_measures_tone_frequency_stereo_power_and_pre_post_gain() {
     for resolution in [
         AnalyzerResolution::Low,

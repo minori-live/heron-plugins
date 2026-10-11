@@ -112,10 +112,21 @@ parameter and numerical acceptance, including these relationships:
   destination globals unchanged.
 
 Frequency positions use a logarithmic domain: equal ratios occupy equal
-distances. Frequency and Q rotaries use their domain mapping; EQ gain uses a
-linear dB axis. Drawing, drag interpretation, snapping and readouts must use the
-same conversions. Display ranges do not silently rewrite stored settings.
-The right spectrum dBFS axis is separate from the left EQ-gain axis.
+distances. The graph spans 10 Hz to the current sample rate's actual Nyquist
+frequency, including at high sample rates; no fixed 30 kHz display cap or mask
+extends the axis beyond that endpoint. Drawing, drag interpretation, snapping
+and graph readouts use the same current mapping. A sample-rate change cancels
+an active graph pointer gesture rather than continuing its retained drag on a
+new domain. Band nodes above the current Nyquist frequency are hidden and
+excluded from point and box selection.
+
+Frequency and Q rotaries retain their parameter-domain mapping; EQ gain uses a
+linear dB axis. The saved and automated band-frequency range remains 1 Hz–30 kHz;
+manual frequency editing still starts at 10 Hz. Saved frequencies below 10 Hz
+retain the existing left-edge clamping for drawing and interaction. Display
+range changes do not rewrite stored settings. The right spectrum dBFS axis is
+separate from the left EQ-gain axis. [ADR 0003](adr/0003-eq-nyquist-display-domain.md)
+records the graph-domain decision.
 
 Measured Pre/Post belong to this instance's input/output; External and Match
 use its routed sidechain. Editable static response, actual processor state,

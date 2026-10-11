@@ -42,7 +42,11 @@ fn bounds() -> Rectangle {
     }
 }
 fn plot() -> Plot {
-    Plot::new(Size::new(bounds().width, bounds().height), 12.0)
+    Plot::new(
+        Size::new(bounds().width, bounds().height),
+        12.0,
+        SpectrumSnapshot::default().sample_rate,
+    )
 }
 fn node() -> Point {
     plot().visible_node(1000.0, 3.0)
@@ -97,6 +101,178 @@ fn modifiers(graph: &Graph, state: &mut GraphState, modifiers: keyboard::Modifie
         )
         .is_none()
     );
+}
+
+#[test]
+fn graph_gestures_share_the_current_sample_rates_full_nyquist_axis() {
+    for sample_rate in [32_000.0, 96_000.0, 192_000.0] {
+        let mut graph = graph();
+        graph.spectrum.sample_rate = sample_rate;
+        let plot = Plot::new(bounds().size(), graph.range_db, sample_rate);
+        let node = plot.visible_node(1000.0, 3.0);
+        let mut state = GraphState::default();
+        let cursor = mouse::Cursor::Available(Point::new(node.x + bounds().x, node.y + bounds().y));
+        assert_eq!(
+            graph.mouse_interaction(&state, bounds(), cursor),
+            mouse::Interaction::Grab
+        );
+        assert!(matches!(
+            press(&graph, &mut state, node),
+            Some(GraphMessage::BeginDrag { id: 1, .. })
+        ));
+        let target = plot.visible_node(2000.0, 3.0);
+        match motion(&graph, &mut state, target) {
+            Some(GraphMessage::Drag {
+                frequency_ratio, ..
+            }) => {
+                assert!((frequency_ratio - 2.0).abs() < 0.001);
+            }
+            other => panic!("expected frequency drag, got {other:?}"),
+        }
+        release(&graph, &mut state, target);
+
+        let endpoint = Point::new(
+            (plot.bounds.x + plot.bounds.width).next_down(),
+            plot.gain_y(-8.0),
+        );
+        press(&graph, &mut state, endpoint);
+        release(&graph, &mut state, endpoint);
+        match press(&graph, &mut state, endpoint) {
+            Some(GraphMessage::Add { frequency, .. }) => {
+                assert!((frequency - sample_rate * 0.5).abs() < 0.2);
+            }
+            other => panic!("expected addition at Nyquist, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn sample_rate_change_cancels_a_retained_drag_once_before_late_motion_or_release() {
+    let mut graph = graph();
+    graph.spectrum.sample_rate = 96_000.0;
+    let plot = Plot::new(bounds().size(), graph.range_db, graph.spectrum.sample_rate);
+    let node = plot.visible_node(1000.0, 3.0);
+    let target = plot.visible_node(2000.0, 3.0);
+    let mut state = GraphState::default();
+    assert!(matches!(
+        press(&graph, &mut state, node),
+        Some(GraphMessage::BeginDrag { id: 1, .. })
+    ));
+    assert!(matches!(
+        motion(&graph, &mut state, target),
+        Some(GraphMessage::Drag { .. })
+    ));
+
+    graph.spectrum.sample_rate = 32_000.0;
+    assert!(matches!(
+        motion(&graph, &mut state, target),
+        Some(GraphMessage::Cancel)
+    ));
+    assert!(motion(&graph, &mut state, Point::new(target.x + 30.0, target.y)).is_none());
+    assert!(release(&graph, &mut state, target).is_none());
+}
+
+#[test]
+fn shift_release_that_cancels_a_changed_sample_rate_does_not_lock_the_next_drag() {
+    let mut graph = graph();
+    graph.spectrum.sample_rate = 96_000.0;
+    let plot = Plot::new(bounds().size(), graph.range_db, graph.spectrum.sample_rate);
+    let node = plot.visible_node(1000.0, 3.0);
+    let mut state = GraphState::default();
+    assert!(matches!(
+        press(&graph, &mut state, node),
+        Some(GraphMessage::BeginDrag { .. })
+    ));
+    modifiers(&graph, &mut state, keyboard::Modifiers::SHIFT);
+
+    graph.spectrum.sample_rate = 32_000.0;
+    assert!(matches!(
+        send(
+            &graph,
+            &mut state,
+            Event::Keyboard(keyboard::Event::ModifiersChanged(
+                keyboard::Modifiers::empty()
+            )),
+            node,
+        ),
+        Some(GraphMessage::Cancel)
+    ));
+    assert!(motion(&graph, &mut state, node).is_none());
+    assert!(release(&graph, &mut state, node).is_none());
+
+    let plot = Plot::new(bounds().size(), graph.range_db, graph.spectrum.sample_rate);
+    let node = plot.visible_node(1000.0, 3.0);
+    let target = plot.visible_node(2000.0, 0.0);
+    assert!(matches!(
+        press(&graph, &mut state, node),
+        Some(GraphMessage::BeginDrag { .. })
+    ));
+    match motion(&graph, &mut state, target) {
+        Some(GraphMessage::Drag {
+            frequency_ratio,
+            gain_delta,
+        }) => {
+            assert!((frequency_ratio - 2.0).abs() < 0.001);
+            assert!((gain_delta + 3.0).abs() < 0.001);
+        }
+        other => panic!("expected an unlocked drag, got {other:?}"),
+    }
+}
+
+#[test]
+fn stored_one_hertz_band_remains_at_the_left_edge_and_can_be_hit_without_rewriting_its_value() {
+    let mut graph = graph();
+    graph.config.bands[0].frequency_hz = 1.0;
+    let saved = graph.config.clone();
+    let plot = Plot::new(bounds().size(), graph.range_db, graph.spectrum.sample_rate);
+    let pointer = Point::new(plot.bounds.x, plot.gain_y(3.0));
+    let mut state = GraphState::default();
+    assert!(matches!(
+        press(&graph, &mut state, pointer),
+        Some(GraphMessage::BeginDrag { id: 1, .. })
+    ));
+    assert!(matches!(
+        release(&graph, &mut state, pointer),
+        Some(GraphMessage::End)
+    ));
+    assert_eq!(graph.config, saved);
+}
+
+#[test]
+fn stored_bands_above_nyquist_cannot_be_hit_or_box_selected_and_return_when_the_rate_rises() {
+    let mut graph = graph();
+    graph.config.bands[0].frequency_hz = 20_000.0;
+    let saved = graph.config.clone();
+    graph.spectrum.sample_rate = 32_000.0;
+    let plot = Plot::new(bounds().size(), graph.range_db, graph.spectrum.sample_rate);
+    let hidden = plot.visible_node(20_000.0, 3.0);
+    let pointer = Point::new(hidden.x - 0.25, hidden.y);
+    let mut state = GraphState::default();
+    assert!(
+        send(
+            &graph,
+            &mut state,
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
+            pointer,
+        )
+        .is_none()
+    );
+    let start = Point::new(hidden.x - 32.0, hidden.y - 32.0);
+    let end = Point::new(hidden.x + 20.0, hidden.y + 32.0);
+    assert!(press(&graph, &mut state, start).is_none());
+    assert!(motion(&graph, &mut state, end).is_none());
+    match release(&graph, &mut state, end) {
+        Some(GraphMessage::SelectArea { ids, .. }) => assert!(ids.is_empty()),
+        other => panic!("expected an empty band selection, got {other:?}"),
+    }
+
+    graph.spectrum.sample_rate = 96_000.0;
+    let plot = Plot::new(bounds().size(), graph.range_db, graph.spectrum.sample_rate);
+    assert!(matches!(
+        press(&graph, &mut state, plot.visible_node(20_000.0, 3.0)),
+        Some(GraphMessage::BeginDrag { id: 1, .. })
+    ));
+    assert_eq!(graph.config, saved);
 }
 
 #[test]
@@ -159,10 +335,12 @@ fn host_restore_invalidates_a_retained_node_pointer_before_late_motion_or_releas
         Some(GraphMessage::BeginDrag { .. })
     ));
     graph.restore_revision = 1;
+    graph.spectrum.sample_rate = 32_000.0;
     graph.config.bands[0].gain_db = -6.0;
     assert!(motion(&graph, &mut state, Point::new(node().x + 30.0, node().y)).is_none());
     assert!(release(&graph, &mut state, node()).is_none());
-    let restored = plot().visible_node(1000.0, -6.0);
+    let restored = Plot::new(bounds().size(), graph.range_db, graph.spectrum.sample_rate)
+        .visible_node(1000.0, -6.0);
     assert!(matches!(
         press(&graph, &mut state, restored),
         Some(GraphMessage::BeginDrag { id: 1, .. })

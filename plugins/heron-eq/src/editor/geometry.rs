@@ -3,37 +3,43 @@
 use truce_iced::iced::{Point, Rectangle, Size};
 
 pub const MIN_HZ: f32 = 10.0;
-pub const MAX_HZ: f32 = 30_000.0;
 pub const TOP_GUTTER: f32 = 32.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Plot {
     pub bounds: Rectangle,
     pub range_db: f32,
+    pub maximum_hz: f32,
 }
 
 impl Plot {
-    pub fn new(size: Size, range_db: f32) -> Self {
+    pub fn new(size: Size, range_db: f32, sample_rate: f64) -> Self {
         Self {
-            bounds: Rectangle {
-                x: 42.0,
-                y: TOP_GUTTER,
-                width: (size.width - 70.0).max(1.0),
-                height: (size.height - TOP_GUTTER - 32.0).max(1.0),
-            },
+            bounds: Self::bounds(size),
             range_db,
+            maximum_hz: (sample_rate * 0.5) as f32,
+        }
+    }
+
+    pub fn bounds(size: Size) -> Rectangle {
+        Rectangle {
+            x: 42.0,
+            y: TOP_GUTTER,
+            width: (size.width - 70.0).max(1.0),
+            height: (size.height - TOP_GUTTER - 32.0).max(1.0),
         }
     }
 
     pub fn frequency_x(self, frequency: f32) -> f32 {
         self.bounds.x
-            + ((frequency.clamp(MIN_HZ, MAX_HZ) / MIN_HZ).ln() / (MAX_HZ / MIN_HZ).ln())
+            + ((frequency.clamp(MIN_HZ, self.maximum_hz) / MIN_HZ).ln()
+                / (self.maximum_hz / MIN_HZ).ln())
                 * self.bounds.width
     }
 
     pub fn x_frequency(self, x: f32) -> f32 {
         let position = ((x - self.bounds.x) / self.bounds.width).clamp(0.0, 1.0);
-        MIN_HZ * (MAX_HZ / MIN_HZ).powf(position)
+        (MIN_HZ * (self.maximum_hz / MIN_HZ).powf(position)).min(self.maximum_hz)
     }
 
     pub fn gain_y(self, gain: f32) -> f32 {
@@ -82,9 +88,9 @@ mod tests {
 
     #[test]
     fn dragging_to_edges_clamps_to_supported_frequency_and_gain() {
-        let plot = Plot::new(Size::new(1000.0, 500.0), 30.0);
+        let plot = Plot::new(Size::new(1000.0, 500.0), 30.0, 48_000.0);
         assert!((plot.x_frequency(-200.0) - MIN_HZ).abs() < 0.001);
-        assert!((plot.x_frequency(2000.0) - MAX_HZ).abs() < 0.01);
+        assert!((plot.x_frequency(2000.0) - 24_000.0).abs() < 0.01);
         assert!((plot.y_gain(-200.0) - 30.0).abs() < 0.001);
         assert!((plot.y_gain(2000.0) + 30.0).abs() < 0.001);
         for frequency in [20.0, 50.0, 1000.0, 20_000.0] {
@@ -96,7 +102,7 @@ mod tests {
 
     #[test]
     fn gain_unit_has_an_independent_top_gutter_above_gain_labels_and_curves() {
-        let plot = Plot::new(Size::new(1040.0, 616.0), 12.0);
+        let plot = Plot::new(Size::new(1040.0, 616.0), 12.0, 48_000.0);
         assert_eq!(plot.gain_y(12.0), TOP_GUTTER);
         assert!(6.0 + 16.0 < plot.gain_y(12.0) - 5.0);
         assert_eq!(plot.bounds.y + plot.bounds.height, 616.0 - 32.0);
@@ -107,5 +113,19 @@ mod tests {
         let rectangle = selection_rectangle(Point::new(300.0, 100.0), Point::new(100.0, 300.0));
         assert!(rectangle.contains(Point::new(200.0, 200.0)));
         assert!(!rectangle.contains(Point::new(80.0, 200.0)));
+    }
+
+    #[test]
+    fn actual_nyquist_fills_the_log_axis_at_low_and_high_sample_rates() {
+        for sample_rate in [8_000.0, 32_000.0, 44_100.0, 96_000.0, 192_000.0, 384_000.0] {
+            let plot = Plot::new(Size::new(1040.0, 616.0), 12.0, sample_rate);
+            let nyquist = (sample_rate * 0.5) as f32;
+            let right = plot.bounds.x + plot.bounds.width;
+            assert!((plot.frequency_x(nyquist) - right).abs() < 0.001);
+            assert!((plot.x_frequency(right) - nyquist).abs() < 0.02);
+            let midpoint = (MIN_HZ * nyquist).sqrt();
+            assert!((plot.frequency_x(midpoint) - plot.bounds.center_x()).abs() < 0.001);
+            assert_eq!(plot.maximum_hz, nyquist);
+        }
     }
 }

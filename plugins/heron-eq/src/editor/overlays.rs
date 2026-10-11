@@ -65,7 +65,7 @@ pub fn menu(
         };
         Point::new(x, y)
     });
-    let plot = Plot::new(Size::new(graph.width, graph.height), 12.0).bounds;
+    let plot = Plot::bounds(Size::new(graph.width, graph.height));
     clamp_panel(
         point,
         original,

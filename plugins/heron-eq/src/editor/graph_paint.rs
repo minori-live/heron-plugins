@@ -9,10 +9,7 @@ impl Graph {
     fn grid(&self, frame: &mut Frame, plot: Plot) {
         let colors = style::palette();
         frame.fill_rectangle(Point::ORIGIN, frame.size(), colors.canvas);
-        for hz in [
-            10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10_000.0, 20_000.0,
-            30_000.0,
-        ] {
+        for hz in frequency_ticks(plot.maximum_hz) {
             let x = plot.frequency_x(hz);
             frame.stroke(
                 &Path::line(
@@ -21,18 +18,25 @@ impl Graph {
                 ),
                 Stroke::default().with_color(alpha(colors.border, 0.45)),
             );
-            label(
-                frame,
-                if hz >= 1000.0 {
-                    format!("{}k", hz / 1000.0)
-                } else {
-                    format!("{hz:.0}")
-                },
-                Point::new(x, plot.bounds.y + plot.bounds.height + 8.0),
-                colors.text_subtle,
-                self.font,
-                alignment::Horizontal::Center,
-            );
+            let endpoint = hz >= plot.maximum_hz;
+            if endpoint || x + 48.0 < plot.bounds.x + plot.bounds.width {
+                label(
+                    frame,
+                    if hz >= 1000.0 {
+                        format!("{}k", hz / 1000.0)
+                    } else {
+                        format!("{hz:.0}")
+                    },
+                    Point::new(x, plot.bounds.y + plot.bounds.height + 8.0),
+                    colors.text_subtle,
+                    self.font,
+                    if endpoint {
+                        alignment::Horizontal::Right
+                    } else {
+                        alignment::Horizontal::Center
+                    },
+                );
+            }
         }
         for multiplier in [-1.0, -0.5, 0.0, 0.5, 1.0] {
             let db = self.range_db * multiplier;
@@ -102,7 +106,7 @@ impl Graph {
         spectrum_plot::draw(
             frame,
             plot,
-            &self.spectrum.frequency_hz,
+            &self.spectrum,
             values,
             self.floor_db,
             appearance,
@@ -149,7 +153,7 @@ impl Graph {
                 .iter()
                 .find(|scaled| scaled.id == band.id)
                 .unwrap_or(band);
-            let line = response_path(plot, |frequency| {
+            let line = response_path(plot, self.spectrum.sample_rate, |frequency| {
                 scaled.magnitude_db(self.spectrum.sample_rate, frequency)
             });
             let selected = self.selected.contains(&band.id);
@@ -174,8 +178,11 @@ impl Graph {
                 self.show_total_response,
             )
         };
-        let line = response(1000.0)
-            .map(|_| response_path(plot, |frequency| response(frequency).unwrap_or(f64::NAN)));
+        let line = response(1000.0).map(|_| {
+            response_path(plot, self.spectrum.sample_rate, |frequency| {
+                response(frequency).unwrap_or(f64::NAN)
+            })
+        });
         if let Some(line) = line {
             frame.stroke(
                 &line,
@@ -189,6 +196,9 @@ impl Graph {
             );
         }
         for band in &self.config.bands {
+            if band.frequency_hz as f32 > plot.maximum_hz {
+                continue;
+            }
             let center = plot.visible_node(band.frequency_hz as f32, band.gain_db as f32);
             let color = band_color(band.id.saturating_sub(1) as usize);
             let selected = self.selected.contains(&band.id);
@@ -235,7 +245,7 @@ impl Graph {
         cursor: mouse::Cursor,
     ) -> Vec<Geometry> {
         let mut frame = Frame::new(renderer, bounds.size());
-        let plot = Plot::new(bounds.size(), self.range_db);
+        let plot = Plot::new(bounds.size(), self.range_db, self.spectrum.sample_rate);
         self.grid(&mut frame, plot);
         let colors = style::palette();
         if self.external {
@@ -247,11 +257,15 @@ impl Graph {
                     self.spectrum.frequency_hz.get(index),
                     self.spectrum.frequency_hz.get(index + 1),
                 ) {
+                    let maximum = plot.maximum_hz;
+                    if frequency >= maximum {
+                        continue;
+                    }
                     let x = plot.frequency_x(frequency);
                     frame.fill_rectangle(
                         Point::new(x, plot.bounds.y),
                         truce_iced::iced::Size::new(
-                            (plot.frequency_x(next) - x).max(1.0),
+                            (plot.frequency_x(next.min(maximum)) - x).max(0.0),
                             plot.bounds.height,
                         ),
                         alpha(colors.warning, 0.07),
@@ -334,18 +348,6 @@ impl Graph {
                 alignment::Horizontal::Center,
             );
         }
-        let maximum = self.spectrum.sample_rate * 0.499;
-        if maximum < 30_000.0 {
-            let x = plot.frequency_x(maximum as f32);
-            frame.fill_rectangle(
-                Point::new(x, plot.bounds.y),
-                truce_iced::iced::Size::new(
-                    (plot.bounds.x + plot.bounds.width - x).max(0.0),
-                    plot.bounds.height,
-                ),
-                alpha(colors.surface, 0.5),
-            );
-        }
         if self.snap {
             piano(&mut frame, plot, self.font, bounds.height);
         }
@@ -420,12 +422,28 @@ fn alpha(mut color: Color, alpha: f32) -> Color {
     color
 }
 
+fn frequency_ticks(maximum_hz: f32) -> Vec<f32> {
+    let mut ticks = Vec::new();
+    let mut decade = 10.0;
+    while decade < maximum_hz {
+        for multiplier in [1.0, 2.0, 5.0] {
+            let frequency = decade * multiplier;
+            if frequency < maximum_hz {
+                ticks.push(frequency);
+            }
+        }
+        decade *= 10.0;
+    }
+    ticks.push(maximum_hz);
+    ticks
+}
+
 fn piano(frame: &mut Frame, plot: Plot, font: Font, height: f32) {
     let colors = style::palette();
     let y = height - 13.0;
     for note in 0..=127_u8 {
         let frequency = 440.0 * 2.0_f32.powf((f32::from(note) - 69.0) / 12.0);
-        if !(10.0..=30_000.0).contains(&frequency) {
+        if !(10.0..=plot.maximum_hz).contains(&frequency) {
             continue;
         }
         let x = plot.frequency_x(frequency / 2.0_f32.powf(1.0 / 24.0));
@@ -433,7 +451,7 @@ fn piano(frame: &mut Frame, plot: Plot, font: Font, height: f32) {
         let black = matches!(note % 12, 1 | 3 | 6 | 8 | 10);
         frame.fill_rectangle(
             Point::new(x, y),
-            truce_iced::iced::Size::new((end - x - 0.5).max(0.5), 12.0),
+            truce_iced::iced::Size::new((end - x - 0.5).max(0.0), 12.0),
             if black {
                 colors.control
             } else {
@@ -449,6 +467,26 @@ fn piano(frame: &mut Frame, plot: Plot, font: Font, height: f32) {
                 font,
                 alignment::Horizontal::Center,
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frequency_grid_has_one_nyquist_endpoint_and_no_ticks_above_it() {
+        for sample_rate in [32_000.0_f32, 44_100.0, 96_000.0, 192_000.0, 384_000.0] {
+            let nyquist = sample_rate * 0.5;
+            let ticks = frequency_ticks(nyquist);
+            assert_eq!(ticks.last(), Some(&nyquist));
+            assert!(
+                ticks
+                    .iter()
+                    .all(|frequency| (10.0..=nyquist).contains(frequency))
+            );
+            assert!(ticks.windows(2).all(|pair| pair[0] < pair[1]));
         }
     }
 }

@@ -67,6 +67,7 @@ pub enum GraphMessage {
 #[derive(Debug, Default)]
 pub struct GraphState {
     restore_revision: u64,
+    sample_rate: Option<f64>,
     drag: Option<Drag>,
     rectangle: Option<Point>,
     press: Option<Press>,
@@ -119,6 +120,9 @@ pub struct Graph {
 impl Graph {
     fn hit(&self, plot: Plot, point: Point) -> Option<&heron_plugin_dsp::eq::EqBand> {
         self.config.bands.iter().rev().find(|band| {
+            if band.frequency_hz as f32 > plot.maximum_hz {
+                return false;
+            }
             let distance = plot.visible_node(band.frequency_hz as f32, band.gain_db as f32) - point;
             distance.x.mul_add(distance.x, distance.y * distance.y) <= 144.0
         })

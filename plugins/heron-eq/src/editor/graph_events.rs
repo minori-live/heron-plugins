@@ -42,6 +42,23 @@ impl Graph {
             state.clear_pointer();
             state.restore_revision = self.restore_revision;
         }
+        if state
+            .sample_rate
+            .replace(self.spectrum.sample_rate)
+            .is_some_and(|previous| previous != self.spectrum.sample_rate)
+            && state.clear_pointer()
+        {
+            match event {
+                Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)) => {
+                    state.modifiers = *modifiers;
+                }
+                Event::Window(truce_iced::iced::window::Event::Unfocused) => {
+                    state.modifiers = keyboard::Modifiers::empty();
+                }
+                _ => {}
+            }
+            return self.publish(GraphMessage::Cancel);
+        }
         // A sibling HUD obscures hover hit-testing, but an existing graph gesture
         // still owns its pointer until release or cancellation.
         let cursor = if state.drag.is_some() || state.press.is_some() {
@@ -49,7 +66,7 @@ impl Graph {
         } else {
             cursor
         };
-        let plot = Plot::new(bounds.size(), self.range_db);
+        let plot = Plot::new(bounds.size(), self.range_db, self.spectrum.sample_rate);
         let point = cursor.position_in(bounds);
         match event {
             Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)) => {
@@ -210,18 +227,19 @@ impl Graph {
                         }
                         let end = point.or(state.position).unwrap_or(start);
                         let rectangle = selection_rectangle(start, end);
-                        let ids =
-                            self.config
-                                .bands
-                                .iter()
-                                .filter(|band| {
-                                    rectangle.contains(plot.visible_node(
+                        let ids = self
+                            .config
+                            .bands
+                            .iter()
+                            .filter(|band| {
+                                band.frequency_hz as f32 <= plot.maximum_hz
+                                    && rectangle.contains(plot.visible_node(
                                         band.frequency_hz as f32,
                                         band.gain_db as f32,
                                     ))
-                                })
-                                .map(|band| band.id)
-                                .collect();
+                            })
+                            .map(|band| band.id)
+                            .collect();
                         self.publish(GraphMessage::SelectArea { ids, additive })
                     }
                     None => None,
@@ -263,7 +281,7 @@ impl Graph {
         let Some(point) = cursor.position_in(bounds) else {
             return mouse::Interaction::default();
         };
-        let plot = Plot::new(bounds.size(), self.range_db);
+        let plot = Plot::new(bounds.size(), self.range_db, self.spectrum.sample_rate);
         if !plot.contains(point) {
             return mouse::Interaction::default();
         }

@@ -22,7 +22,7 @@ impl EqUi {
                 gain_delta,
             } => {
                 self.model.get_mut().drag(frequency_ratio, gain_delta);
-                let maximum = (params.telemetry.sample_rate() * 0.499).min(30_000.0);
+                let maximum = maximum_band_frequency(params.telemetry.sample_rate());
                 for band in &mut self.model.get_mut().config.bands {
                     band.frequency_hz = band.frequency_hz.min(maximum);
                 }
@@ -391,7 +391,7 @@ impl EqUi {
                     Ok((mut config, residual)) => {
                         let count = config.bands.len();
                         let sample_rate = params.telemetry.sample_rate();
-                        let maximum = (sample_rate * 0.499).min(30_000.0);
+                        let maximum = maximum_band_frequency(sample_rate);
                         for band in &mut config.bands {
                             band.frequency_hz = band.frequency_hz.min(maximum);
                         }

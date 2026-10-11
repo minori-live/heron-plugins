@@ -199,7 +199,7 @@ impl EqUi {
 
     fn change_result(&mut self, action: impl FnOnce(&mut Model)) -> bool {
         let sample_rate = self.active_params().telemetry.sample_rate();
-        let maximum = (sample_rate * 0.499).min(30_000.0);
+        let maximum = maximum_band_frequency(sample_rate);
         let mut clamped = false;
         let result = self.model.get_mut().change_checked(
             |model| {
@@ -401,6 +401,12 @@ fn read_extras(params: &EqParams) -> Extras {
         output_pan_mode: params.get_plain(9).unwrap_or(0.0).round().clamp(0.0, 1.0) as u8,
         output_mute: params.get_plain(10).unwrap_or(0.0) > 0.5,
     }
+}
+
+/// Band edits stay below the DSP validator's exclusive frequency limit.
+/// The graph still displays the full Nyquist domain.
+fn maximum_band_frequency(sample_rate: f64) -> f64 {
+    (sample_rate * 0.499).next_down().min(30_000.0)
 }
 
 fn peak_db(peak: f32) -> f32 {
