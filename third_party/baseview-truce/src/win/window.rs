@@ -7,9 +7,7 @@ use windows_sys::Win32::{
     System::Ole::{OleInitialize, RevokeDragDrop},
     UI::{
         Controls::{HOVER_DEFAULT, WM_MOUSELEAVE},
-        HiDpi::{
-            GetDpiForWindow, SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE,
-        },
+        HiDpi::GetDpiForWindow,
         Input::KeyboardAndMouse::{
             GetFocus, ReleaseCapture, SetCapture, SetFocus, TrackMouseEvent, TME_LEAVE,
             TRACKMOUSEEVENT,
@@ -178,10 +176,7 @@ impl WindowImpl for BaseviewWindow {
         self._keyboard_hook.set(Some(hook::init_keyboard_hook(hwnd)));
 
         unsafe {
-            // Only works on Windows 10 unfortunately.
-            SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
-
-            // Now we can get the actual dpi of the window.
+            // The host owns DPI awareness; query the window without changing its policy.
             let new_rect = if let WindowScalePolicy::SystemScaleFactor =
                 self.window_state.scale_policy
             {

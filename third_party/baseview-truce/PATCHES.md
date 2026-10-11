@@ -7,6 +7,33 @@ manifest and published MIT/Apache-2.0 licenses.
 - Upstream repository: <https://github.com/truce-audio/baseview>
 - Upstream commit: `a860a62b6471a549f113026b236242a90a3c9d8e`
 
+## Windows DPI ownership
+
+`src/win/window.rs` no longer calls `SetProcessDpiAwarenessContext` in the
+shared window initializer. Embedded editors inherit the loading host's DPI
+policy and keep the existing content-scale negotiation. There is no replacement
+thread override. Standalone executables own their manifest/startup policy;
+cargo-truce 6.3.0 already embeds the standalone manifest. See
+[ADR-0004](../../agents/docs/adr/0004-host-owned-windows-dpi.md).
+
+Validation: `cargo check --locked -p baseview-truce --target
+x86_64-pc-windows-msvc` passes from macOS, compiling the changed Windows backend.
+Workspace formatting and the vendored Windows file's rustfmt check pass.
+
+The reported Studio One whole-application shrinking has not been reproduced
+locally. To check it on Windows, keep the affected user's display scale,
+Studio One High-DPI setting and per-plug-in System DPI Scaling setting fixed.
+Start a fresh host process for each before/after build, open and close each
+Heron editor repeatedly, and compare the host's menus, mixer and text size.
+Also check editor rendering, resize and pointer alignment with System DPI
+Scaling both enabled and disabled. Record the original setter's return value
+and error plus process/thread/window DPI contexts to distinguish a rejected
+request from an actual change. A host with already-fixed DPI awareness may
+reject the old call and show no visual difference.
+
+Remove this patch when a coupled upstream release leaves DPI initialization
+to the executable owner and passes the same Windows host checks.
+
 ## Windows embedded host scale and focus
 
 Windows implementation changes are confined to `src/win/window.rs`:
