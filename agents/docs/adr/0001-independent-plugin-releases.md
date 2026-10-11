@@ -4,6 +4,8 @@ Status: accepted
 
 Artifact pinning is updated by
 [ADR 0002](0002-release-artifact-pinning.md).
+Symbol distribution is superseded by
+[ADR 0005](0005-runtime-only-releases.md).
 
 Heron Gain, EQ, Sine, Metronome and their shared UI change more frequently than the
 DAW. Building them from Heron's workspace couples iteration, build cost and

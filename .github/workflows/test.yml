@@ -40,14 +40,27 @@ jobs:
         with:
           github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
           cache-rust-build: "true"
-      - name: Check source and compatibility contracts
-        run: mise run check
-      - name: Check optional AU and AAX Rust adapters
+      - name: Check source
+        if: runner.os == 'Linux'
         run: |
-          cargo check --workspace --locked --no-default-features --features au
-          cargo check --workspace --locked --no-default-features --features aax
-      - name: Collect Rust coverage
-        run: mise run ci:coverage
+          node scripts/version.ts check
+          pnpm format:check
+          pnpm lint
+          pnpm exec tsc6 --noEmit
+          cargo fmt --all -- --check
+          cargo shear
+      - name: Test release tooling
+        run: node --test scripts/*.test.ts
+      - name: Lint Rust
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Test Rust with coverage
+        run: node scripts/coverage.ts
+      - name: Check real-time allocations
+        run: |
+          cargo test --locked -p heron-gain --features rt-paranoid
+          cargo test --locked -p heron-eq --features rt-paranoid
+          cargo test --locked -p heron-sine --features rt-paranoid
+          cargo test --locked -p heron-metronome --features rt-paranoid
       - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

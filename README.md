@@ -13,8 +13,8 @@ Heron VST3 identities, parameter IDs and saved states.
 
 GitHub Releases provide VST3 bundles for Windows x64, Linux x64, Linux arm64 and
 universal macOS. macOS also includes AUv2 components and an installation disk
-image. Each format has a separate debug-symbol archive. AAX remains explicitly
-disabled until its SDK, signing service and Pro Tools validation are ready.
+image. AAX remains explicitly disabled until its SDK, signing service and Pro
+Tools validation are ready.
 
 Download the runtime ZIP for your platform and format, then install the complete
 bundles from its `bundles/` directory in your DAW's plug-in location. macOS users
@@ -58,9 +58,9 @@ mise run check
 mise run build
 ```
 
-`mise run build` creates development bundles, symbols and archives in
-`target/release-assets/`. macOS builds and validates both Intel and Apple Silicon
-slices; Intel validation on Apple Silicon requires Rosetta. Development macOS
+`mise run build` creates development bundle archives in `target/release-assets/`.
+macOS builds and validates both Intel and Apple Silicon slices; Intel validation
+on Apple Silicon requires Rosetta. Development macOS
 bundles use ad-hoc signing. `node scripts/build.ts --release` requires valid Apple
 release credentials and produces signed, notarized macOS downloads.
 
@@ -73,9 +73,8 @@ The scoped synchronization token lives only in this repository. If Heron main
 is not yet bootstrapped or an upgrade attempt fails, retry the workflow manually;
 the published plug-in release remains available.
 
-There is no plugin-side Sentry reporting or upload configuration in this
-release. Symbol/source archives are generated offline; Heron's release pipeline
-uploads its locked VST3 symbols to Heron's existing crash-reporting project.
+GitHub downloads contain runtime bundles and installers. Plug-ins do not
+publish symbols or integrate with Sentry.
 
 See [CI and release operations](agents/docs/ci.md),
 [the artifact contract](agents/docs/artifacts.md) and

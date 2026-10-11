@@ -12,6 +12,7 @@ linked from the [documentation index](../README.md).
 | [0002 — Release artifact pinning](0002-release-artifact-pinning.md)             | Accepted | Version/commit/filename locks, release assets and consumer validation                              |
 | [0003 — EQ Nyquist display domain](0003-eq-nyquist-display-domain.md)           | Accepted | Sample-rate-dependent graph range, display data and pointer mapping                                |
 | [0004 — Host-owned Windows DPI awareness](0004-host-owned-windows-dpi.md)       | Accepted | Host ownership of process and embedded-editor thread DPI policy                                    |
+| [0005 — Runtime-only releases](0005-runtime-only-releases.md)                   | Accepted | Runtime-only release assets; plug-in Sentry integration deferred                                   |
 
 Accepted means the decision is chosen. Implementation status belongs in the
 owning documents. Proposed decisions do not authorize a compatibility commitment.
@@ -29,7 +30,7 @@ Prefer one cohesive decision over a record for each implementation step.
 
 ## Lifecycle and review
 
-Use four digits and a short kebab-case title; the next local record is **0005**.
+Use four digits and a short kebab-case title; the next local record is **0006**.
 Copy [the template](template.md). Status is Proposed, Accepted, Superseded by
 ADR-NNNN or Rejected. Accepted records change only for editorial corrections,
 links and explicit implementation-scope clarification. A changed decision

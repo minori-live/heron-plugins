@@ -17,10 +17,10 @@ signing prerequisites described in `agents/docs/ci.md`.
 - Keep allocation, filesystem/network access, UI work and blocking synchronization
   out of audio callbacks. Recoverable failures use typed `Result` values; never
   unwind through plugin ABI, platform or audio callbacks.
-- This release has no plugin-side runtime reporting or Sentry upload setup.
-  Generate debug/source archives offline; Heron owns uploading its pinned VST3
-  symbols. Future reporting needs an independent ADR and must preserve real-time
-  constraints and the host DAW's panic/signal/log/crash-handler ownership.
+- GitHub artifacts and releases contain runtime bundles and installers only.
+  Plug-ins do not publish symbol archives or integrate with Sentry. Future
+  reporting needs an independent ADR and must preserve real-time constraints
+  and the host DAW's panic/signal/log/crash-handler ownership.
 - Keep Truce and its wrappers pinned together. Default plugin features remain
   `vst3`; `au` and `aax` are optional, platform-specific release formats.
 - `VERSION`, `workspace.package.version` and package release metadata must agree.

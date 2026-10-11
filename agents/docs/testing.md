@@ -106,7 +106,7 @@ Live-window event tests establish owned mouse routing, resize and focus behavior
 
 Use actual native modules, process/window integration or final published
 artifacts for risks absent at a narrower boundary: fixed VST3/AU identity,
-exported buses, saved-state ABI, final architectures, matching debug IDs, archive
+exported buses, saved-state ABI, final architectures, archive
 links/modes, signing, or an owned editor attachment. Assert our bytes, restored
 parameters, audio output, final bundle contents or visible result. Plain-object
 `JSON.parse(JSON.stringify(fixture))` equality proves JSON, not our encoder.
@@ -189,7 +189,6 @@ change and resolve that constraint explicitly.
 | Legacy state bytes restore fixed parameter IDs and measured audio       | Keep     | Saved-state and sound compatibility are ours.                       |
 | Rejected band paste leaves parameters and selection unchanged           | Keep     | Atomicity of our edit operation is the requirement.                 |
 | A fixed list of source files or fixture names                           | Remove   | Incidental inventory, not a behavioral contract.                    |
-| Final module UUIDs match every archived architecture's debug symbols    | Keep     | The producer owns final release bytes and symbol completeness.      |
 | Exact upstream icon paths or widget nesting                             | Remove   | Asset/composition internals are not our requirement.                |
 | Editor closure balances its gestures and clears only its instance solo  | Keep     | We own the editor's cleanup and instance-isolation policy.          |
 | Repeated upgrade retries converge to one PR without replacing edits     | Keep     | The producer owns retry, lease and external-effect reconciliation.  |

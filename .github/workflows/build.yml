@@ -51,9 +51,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-build
+      - uses: jdx/mise-action@v5.1.1
         with:
-          github-token: ${{ github.token }}
+          version: 2026.10.6
+          install_args: node
       - name: Validate signing identity and notarization authentication
         id: apple
         env:
@@ -101,6 +102,8 @@ jobs:
         uses: ./.github/actions/setup-build
         with:
           github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
+      - name: Fetch pinned VST3 SDK for bundle probes
+        run: mise run sdk:vst3
       - name: Use a faster smoke-build profile
         if: ${{ !inputs.full_release_profile && !inputs.release }}
         run: |
@@ -119,7 +122,7 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: node scripts/apple-credentials.ts
-      - name: Build, verify and archive complete bundles and matching symbols
+      - name: Package and verify runtime bundles
         env:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -130,6 +133,7 @@ jobs:
           path: |
             target/release-assets/*.zip
             target/release-assets/*.dmg
+            !target/release-assets/*-symbols.zip
           if-no-files-found: error
           retention-days: 90
       - name: Remove imported Apple credentials
@@ -171,7 +175,7 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: node scripts/apple-credentials.ts
-      - name: Require licensed SDK, full wrapper symbols, PACE seal and complete validator results
+      - name: Build and validate licensed AAX bundles with PACE signing
         env:
           AAX_SDK_URL: ${{ secrets.AAX_SDK_URL }}
           AAX_SDK_TOKEN: ${{ secrets.AAX_SDK_TOKEN }}
@@ -186,7 +190,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: bundles-${{ matrix.platform }}-aax
-          path: target/release-assets/*-aax*.zip
+          path: |
+            target/release-assets/*-aax.zip
+            !target/release-assets/*-symbols.zip
           if-no-files-found: error
           retention-days: 90
       - name: Remove imported Apple credentials

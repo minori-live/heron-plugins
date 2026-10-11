@@ -78,6 +78,6 @@ export function manifestPlugins(format: Format) {
   }))
 }
 
-export function assetName(version: string, platform: Platform, format: Format, symbols = false) {
-  return `heron-plugins-${version}-${platform}-${format}${symbols ? "-symbols" : ""}.zip`
+export function assetName(version: string, platform: Platform, format: Format) {
+  return `heron-plugins-${version}-${platform}-${format}.zip`
 }

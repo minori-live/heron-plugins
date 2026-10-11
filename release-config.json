@@ -1,7 +1,6 @@
 {
   "aax": {
     "enabled": false,
-    "sdkVersion": null,
-    "publishSdkSources": false
+    "sdkVersion": null
   }
 }

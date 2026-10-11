@@ -18,7 +18,6 @@ import { bundleName, plugins } from "./catalog.ts"
 export interface AaxConfig {
   enabled: boolean
   sdkVersion: string | null
-  publishSdkSources: boolean
 }
 export async function aaxConfig(): Promise<AaxConfig> {
   const config = JSON.parse(await readFile(join(root, "release-config.json"), "utf8")) as {
