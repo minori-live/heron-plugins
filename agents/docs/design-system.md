@@ -192,8 +192,8 @@ the native suite WCAG-conformant from the existence of semantic palettes.
 
 New or changed controls must meet the applicable requirements or document the
 remaining gap, consequence and owned follow-up; existing gaps are not a design
-exception for new behavior. Review native platform output and supported DAW
-attachments rather than substituting browser-only accessibility tooling.
+exception for new behavior. Review native platform output and owned editor
+attachment tests.
 
 ## Contribution evidence
 
@@ -205,11 +205,11 @@ attachments rather than substituting browser-only accessibility tooling.
 - Review overlay anchoring, Escape, focus loss and restoration.
 - Review minimum size, host scaling and actual painted/hit-test agreement.
 - Exercise multiple plug-in instances and host automation/recall independently.
-- Record the format, OS, DAW, scale and scenario for manual evidence; distinguish
+- Record the format, OS, scale and scenario for native evidence; distinguish
   rendered appearance from actual input/lifetime validation.
 
 Follow [testing policy](testing.md), [engineering standards](engineering-standards.md)
 and [CI operations](ci.md). Targeted EQ native render/event tests are review
 surfaces; there is currently no independent all-control native catalog or
-automated accessibility certification. Cross-platform VST3/AUv2 acceptance
-remains part of final bundle/host validation; AAX remains disabled.
+automated accessibility certification. Cross-platform VST3/AUv2 releases use
+final bundle validation; AAX remains disabled.

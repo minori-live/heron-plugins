@@ -33,7 +33,7 @@ move into this workspace.
 The rules apply to all new work and materially changed code or behavior.
 Existing code is not permission to repeat a conflicting pattern. Bring the
 affected scope into compliance or link a narrowly scoped tracking issue.
-Documented gaps in editor accessibility, theme support or host acceptance remain
+Documented gaps in editor accessibility or theme support remain
 gaps; a normative requirement does not establish that a feature is delivered.
 
 Apply the documents by responsibility:
@@ -51,7 +51,7 @@ Apply the documents by responsibility:
 A proposed ADR is not authority. When an accepted ADR changes a durable
 decision, update its owning current-state document in the same change. If an
 accepted ADR and a current document disagree, reconcile them before shipping.
-Accepted architecture is distinct from completed implementation or host QA.
+Accepted architecture is distinct from completed implementation.
 
 Mechanical checks belong in `mise run check` or the appropriate narrower command.
 Rules without an implemented mechanical check still require review; do not claim

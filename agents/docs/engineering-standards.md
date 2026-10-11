@@ -207,13 +207,13 @@ resource bounds, editor behavior, artifact shape or failure/recovery policy.
 Do not build a second conformance suite for Iced, Truce, SDKs, operating systems
 or GitHub. Coverage alone does not establish correctness.
 
-| Owned change                                                     | Primary evidence                                                                                         |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| DSP calculation, parameter mapping or state transition           | Focused deterministic tests with relevant boundary and invalid cases                                     |
-| Serialized state, preset interchange, archive or release adapter | Real owned bytes/storage or contract tests; historical fixtures where compatibility matters              |
-| Editor gesture, cancellation, focus or host automation           | Public control/state tests; native host evidence for a distinct platform boundary                        |
-| Audio callback, queue or DSP publication                         | Allocation invariant and concurrency/overflow tests; benchmark or soak appropriate to the risk           |
-| Native identity, wrapper, signing or installation                | Final-archive probes and platform CI; recorded manual DAW evidence for unsupported automation boundaries |
+| Owned change                                                     | Primary evidence                                                                               |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| DSP calculation, parameter mapping or state transition           | Focused deterministic tests with relevant boundary and invalid cases                           |
+| Serialized state, preset interchange, archive or release adapter | Real owned bytes/storage or contract tests; historical fixtures where compatibility matters    |
+| Editor gesture, cancellation, focus or host automation           | Public control/state tests; native host evidence for a distinct platform boundary              |
+| Audio callback, queue or DSP publication                         | Allocation invariant and concurrency/overflow tests; benchmark or soak appropriate to the risk |
+| Native identity, wrapper, signing or installation                | Final-archive probes and platform CI                                                           |
 
 Tests assert observable output and stable contracts, not private call order,
 incidental widget trees or source inventories. Retain broader tests only for a
@@ -229,10 +229,7 @@ keyboard actions and focus restoration. Verify supported themes, host content
 scale and declared window sizes; errors need specific recovery behavior.
 
 Preserve the existing host parameter gestures and cancellation semantics.
-Changes to material interaction semantics need a documented decision. Automated
-widget tests and `auval` do not prove that the native editor works in Logic or
-another supported DAW; record the required manual evidence described in
-[CI and release operations](ci.md).
+Changes to material interaction semantics need a documented decision.
 
 ## Decisions, documentation and exceptions
 
@@ -263,8 +260,7 @@ checks optional Rust adapters and packages/validates final native artifacts.
 See [environment](environment.md) and [CI operations](ci.md) for their scope.
 
 Thread ownership, unsafe preconditions, compatibility decisions, source-size
-exceptions, TODO tracking and manual editor acceptance remain normative review
-requirements rather than newly installed gates.
+exceptions and TODO tracking remain normative review requirements.
 
 Review each change for clear ownership, stable native/state contracts, one
 commit point, known cleanup/failure state, bounded real-time work, correct

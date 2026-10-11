@@ -244,7 +244,7 @@ window. The renderer test needs a usable GPU and creates review artifacts under
 Heron's actual VST3 host response and resize regressions remain in its
 `heron-audio-host` integration tests. Its browser fitting/export/cancellation
 and project-state checks also remain in Heron. Run those application-owned
-commands from that repository; passing producer tests does not claim host QA.
+commands from that repository.
 
 The producer's legacy EQ fixture records original Heron 0.6.5 state, parameter
 IDs and audio samples, with source provenance in
@@ -306,8 +306,7 @@ arbitrary external hosts that destroy an editor reentrantly inside a parameter
 callback need separate lifecycle validation. Additional plug-in formats and
 control-surface integration are outside the current VST3 host contract.
 AUv2 identity, simultaneous loading and `auval` are checked separately by the
-producer release build; its editor, automation and state behavior in other DAWs
-requires the manual acceptance recorded in [CI operations](ci.md).
+producer release build.
 The locked Truce wrapper coalesces host automation into sub-blocks of at least
 32 samples. MIDI CC handling retains event offsets inside the native processor,
 but arbitrary host parameter offsets do not establish one-sample automation

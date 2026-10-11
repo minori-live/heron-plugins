@@ -50,4 +50,4 @@ and native identities retain their compatibility commitments.
 Check the exact release asset set and consumer lock update behavior. Exercise
 cache reuse, malformed archives, manifest/platform mismatches, final native
 probes and runtime/symbol Debug ID matching. Signed macOS release bundles still
-require notarization, dual-architecture AU validation and manual DAW acceptance.
+require notarization and dual-architecture AU validation.

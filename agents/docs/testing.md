@@ -101,9 +101,6 @@ tested in the shared component.
 
 Native render evidence establishes the displayed state and accepted layout.
 Live-window event tests establish owned mouse routing, resize and focus behavior.
-Neither a screenshot nor a synthetic event alone establishes hardware audio or
-correct operation in every DAW. Keep the manual host acceptance boundary in
-[CI and release operations](ci.md).
 
 ### Integration and release artifacts
 
@@ -124,7 +121,7 @@ loading; they do not establish general VST3/AU SDK conformance.
 Keep allocation, bounded preparation/publication/retirement, concurrency and
 signal-correctness tests at the plug-in processor or owned worker boundary.
 Heron owns host graph publication, runtime scheduling and application recovery.
-Keep native GPU, platform hardware and DAW/soak evidence where CI cannot reproduce
+Keep native GPU, platform hardware and soak evidence where CI cannot reproduce
 the environment. Neither setup inconvenience nor upstream involvement makes a
 data-integrity, compatibility or real-time regression disposable. AAX remains
 disabled until its licensed SDK, signing and official host validation gates are

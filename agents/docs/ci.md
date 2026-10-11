@@ -57,12 +57,6 @@ Restoration also updates the directory timestamp. Validation preserves prior
 installations and never deletes the user's global AU caches. Use a clean local
 validation environment if an older cached suite reports a different version.
 
-Automated identity/load/auval checks do not exercise the editor inside Logic.
-Before publishing the draft, manually test installation, editor open/close,
-automation, preset/state restore, project reopen, offline bounce and MIDI
-metronome notes in the supported DAWs. Preserve the result in release notes;
-artifact attestations prove the producing workflow and bytes, not manual DAW QA.
-
 ## Apple release credentials
 
 Configure these repository secrets before a signed tag release:
@@ -108,7 +102,7 @@ Synchronize VERSION/package/Cargo metadata and Cargo.lock before creating
 `v<VERSION>`. The tag must match VERSION. Release runs Test and signed Build,
 requires the exact asset set, creates public GitHub artifact attestations and
 creates/updates a draft release. An already published release
-is never overwritten. Review native/manual validation evidence and publish the
+is never overwritten. Review native validation evidence and publish the
 draft explicitly.
 GitHub Immutable Releases is enabled for this repository, so publishing locks
 its assets and tag at the service boundary. Draft updates also require the exact

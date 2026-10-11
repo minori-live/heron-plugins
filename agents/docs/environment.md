@@ -82,9 +82,8 @@ Oxfmt, Oxlint, strict TypeScript and script tests, Rust fmt, cargo-shear,
 all-target workspace Clippy, workspace tests and four separate plug-in
 `rt-paranoid` test runs. `mise run check-fast` runs Rust formatting, all-target
 Clippy and workspace tests; it omits JavaScript and the separate paranoid runs.
-Neither local check builds the complete native release matrix or replaces DAW
-acceptance. CI additionally checks the optional AU/AAX Rust adapters, coverage
-and final packaged artifacts.
+The native release matrix runs in CI, which additionally checks the optional
+AU/AAX Rust adapters, coverage and final packaged artifacts.
 
 Use existing leaf commands for narrower work:
 
@@ -102,7 +101,7 @@ cargo check --workspace --locked --no-default-features --features aax
 Run each plug-in's `rt-paranoid` tests separately, as configured in mise; their
 allocation instrumentation must not introduce multiple global allocators into
 one test binary. Optional Rust feature checks do not establish native AU/AAX
-wrapper, SDK, signing or host acceptance. Interactive regressions marked ignored
+wrapper, SDK, signing or loading behavior. Interactive regressions marked ignored
 require their stated platform/desktop environment and are not claimed by an
 ordinary test run.
 
@@ -116,7 +115,7 @@ On Linux, install a C/C++ toolchain and the GUI development libraries used by
 the setup action: Cairo, Fontconfig, FreeType, GLib/Pango, X11/XCB and related
 cursor/input/RandR libraries, xkbcommon, Wayland and wayland-protocols. The
 action records the exact Ubuntu package list. Use native x64 and arm64 build
-hosts for their corresponding release targets. Native editor acceptance needs
+hosts for their corresponding release targets. Native editor event tests need
 a usable graphical desktop; a successful headless build does not exercise it.
 
 On Windows, use the MSVC Rust target with Visual Studio's Desktop development
@@ -172,9 +171,8 @@ AU validation temporarily installs all four complete components under the
 current user's `Library/Audio/Plug-Ins/Components`, restores existing bundles
 afterward and verifies both architectures with simultaneous instances and
 `auval`. Use a controlled local validation session; the script preserves prior
-installations and does not reset global AU caches. Real editor, automation,
-state/project reopen and bounce acceptance in supported DAWs remains a manual
-release requirement. See [artifact contracts](artifacts.md) and
+installations and does not reset global AU caches. See
+[artifact contracts](artifacts.md) and
 [release operations](ci.md) for the exact gates and credentials.
 
 There is no plug-in-side Sentry runtime capture or upload configuration in this

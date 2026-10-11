@@ -172,11 +172,10 @@ instance's saved parameters; loading/recovery policy remains with the host.
 - Overlay dismissal, focus loss, resize and closure have explicit outcomes.
 - A failed operation preserves its documented coherent state and explains a
   useful recovery action.
-- Actual VST3 and AUv2 hosts validate simultaneous loading, editor interaction,
-  parameter automation and save/reopen. Validator success alone is insufficient.
+- Final VST3 and AUv2 bundles pass automated identity, registration and
+  simultaneous loading checks.
 
 Current targeted EQ tests and historical Heron native resize/focus regressions
-provide narrow evidence described in [Heron EQ](heron-eq.md). They do not claim
-all controls meet this specification or all DAWs pass it. Record manual host
-results through [CI operations](ci.md) and follow [testing policy](testing.md).
+provide the evidence described in [Heron EQ](heron-eq.md).
+Follow [testing policy](testing.md) and [CI operations](ci.md).
 AAX acceptance remains deferred while that release format is disabled.

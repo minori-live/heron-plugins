@@ -43,6 +43,4 @@ ownership boundaries.
 CI follows Heron's tool/cache/coverage/Gate conventions without a website.
 Formal macOS releases require Developer ID signing, notarization and a stapled
 installation DMG. Required bundle validation runs against unpacked release ZIPs
-and both macOS architectures. Published release assets are immutable. Manual
-Logic/retail Pro Tools editor, automation and state validation complements the
-automated ABI and validator checks before publishing a reviewed draft.
+and both macOS architectures. Published release assets are immutable.

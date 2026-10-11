@@ -12,9 +12,8 @@ linked from the [documentation index](../README.md).
 | [0002 — Release artifact pinning](0002-release-artifact-pinning.md)             | Accepted | Version/commit/filename locks, release assets and consumer validation                              |
 | [0003 — EQ Nyquist display domain](0003-eq-nyquist-display-domain.md)           | Accepted | Sample-rate-dependent graph range, display data and pointer mapping                                |
 
-Accepted means the decision is chosen. It does not claim that all formats,
-implementation work or manual host acceptance are complete. Proposed decisions
-do not authorize a compatibility commitment.
+Accepted means the decision is chosen. Implementation status belongs in the
+owning documents. Proposed decisions do not authorize a compatibility commitment.
 
 ## When a decision record is required
 

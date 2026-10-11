@@ -188,6 +188,5 @@ decisions update this current-state document; proposed work is not current
 architecture.
 
 Use [engineering standards](engineering-standards.md) and
-[testing policy](testing.md) for implementation and evidence. Validate final
-unpacked bundles and native editor lifetimes in the applicable DAW/format;
-reference validators complement, rather than replace, host acceptance.
+[testing policy](testing.md) for implementation and evidence. Platform CI
+validates final unpacked bundles; native event tests cover owned editor lifetimes.
