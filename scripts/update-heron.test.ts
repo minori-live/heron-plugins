@@ -100,8 +100,8 @@ async function fixture() {
         } else {
           assert.equal(args[3], "plugins:prepare")
           prepares.push(args)
-          if (rejectPrepare) throw new Error("Consumer rejected the runtime or symbols")
-          if (args.includes("--symbols") && afterPrepare) {
+          if (rejectPrepare) throw new Error("Consumer rejected the runtime")
+          if (afterPrepare) {
             const action = afterPrepare
             afterPrepare = undefined
             await action()
@@ -252,7 +252,7 @@ test("producer creates one lock-only upgrade and repairs metadata without changi
       lockFile
     )
     assert.equal(f.pulls.length, 1)
-    assert.match(f.pulls[0]!.body!, /Linux x64 runtime and symbol archives/)
+    assert.match(f.pulls[0]!.body!, /Linux x64 runtime archive/)
     f.pulls[0]!.title = "Stale title"
     f.pulls[0]!.body = "Stale body"
     assert.equal(await (await f.checkout()).execute(), "updated")
@@ -262,7 +262,10 @@ test("producer creates one lock-only upgrade and repairs metadata without changi
     assert.equal(f.edits, 1)
     assert.equal(f.pulls[0]!.title, "Update Heron plug-ins to 0.6.5")
     assert.equal(f.pendingLocks[0], f.lockAt(commit))
-    assert.equal(f.prepares.length, 4)
+    assert.deepEqual(f.prepares, [
+      ["exec", "--", "pnpm", "plugins:prepare", "--platform", "linux-x64"],
+      ["exec", "--", "pnpm", "plugins:prepare", "--platform", "linux-x64"]
+    ])
   } finally {
     await f.cleanup()
   }
@@ -353,11 +356,11 @@ test("consumer rejection protects the pending branch and PR", async () => {
   }
 })
 
-test("invalid final runtime or symbols fail before creating a remote branch or PR", async () => {
+test("invalid final runtime fails before creating a remote branch or PR", async () => {
   const f = await fixture()
   try {
     f.rejectPrepare = true
-    await assert.rejects((await f.checkout()).execute(), /runtime or symbols/)
+    await assert.rejects((await f.checkout()).execute(), /rejected the runtime/)
     assert.equal(f.pushes, 0)
     assert.equal(f.pulls.length, 0)
     assert.equal(

@@ -66,17 +66,6 @@ runs:
         path: ${{ steps.paths.outputs.pnpm-store }}
         key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
         restore-keys: pnpm-store-${{ runner.os }}-${{ runner.arch }}-
-    - name: Fetch pinned VST3 SDK for binary identity probes
-      shell: bash
-      env:
-        VST3_SDK_COMMIT: 9fad9770f2ae8542ab1a548a68c1ad1ac690abe0
-      run: |
-        git init third_party/vst3sdk
-        git -C third_party/vst3sdk remote add origin https://github.com/steinbergmedia/vst3sdk.git
-        git -C third_party/vst3sdk fetch --depth 1 origin "$VST3_SDK_COMMIT"
-        git -C third_party/vst3sdk checkout --detach FETCH_HEAD
-        git -C third_party/vst3sdk submodule update --init --recursive --depth 1
-        test "$(git -C third_party/vst3sdk rev-parse HEAD)" = "$VST3_SDK_COMMIT"
     - name: Install workspace packages
       shell: bash
       run: mise run install

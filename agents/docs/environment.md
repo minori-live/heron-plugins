@@ -82,8 +82,9 @@ Oxfmt, Oxlint, strict TypeScript and script tests, Rust fmt, cargo-shear,
 all-target workspace Clippy, workspace tests and four separate plug-in
 `rt-paranoid` test runs. `mise run check-fast` runs Rust formatting, all-target
 Clippy and workspace tests; it omits JavaScript and the separate paranoid runs.
-The native release matrix runs in CI, which additionally checks the optional
-AU/AAX Rust adapters, coverage and final packaged artifacts.
+CI runs source checks once on Linux and uses coverage for each platform's Rust
+test pass. Native packaging checks the final bundles; AU is built on macOS and
+AAX is checked by its dedicated release job when enabled.
 
 Use existing leaf commands for narrower work:
 
@@ -160,9 +161,9 @@ Windows x64 and Linux x64/arm64 package VST3. AAX is explicitly disabled in
 `release-config.json` and requires the separate licensed prerequisites in
 [CI and release operations](ci.md).
 
-`mise run build` writes runtime and matching debug/source archives to
+`mise run build` writes runtime archives and installers to
 `target/release-assets/`. It also uses `target/release-stage/`,
-`target/symbol-stage/`, `target/archive-check/` and `target/bundle-probe/` for
+`target/archive-check/` and `target/bundle-probe/` for
 staging and final-archive checks. Each run clears the release asset output.
 macOS development bundles use ad-hoc signing; tag releases keep thin LTO, require
 a clean committed source tree and use Developer ID signing/notarization.
@@ -175,9 +176,8 @@ installations and does not reset global AU caches. See
 [artifact contracts](artifacts.md) and
 [release operations](ci.md) for the exact gates and credentials.
 
-There is no plug-in-side Sentry runtime capture or upload configuration in this
-release. The locked local Sentry CLI validates debug files and creates source
-bundles offline; Heron uploads the VST3 symbols it consumes to its own project.
+GitHub artifacts and releases contain runtime bundles and installers. Plug-ins
+do not publish symbol archives or integrate with Sentry.
 
 ## Formatting, checking and generated output
 

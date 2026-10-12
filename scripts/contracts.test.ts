@@ -6,8 +6,6 @@ import { tmpdir } from "node:os"
 import { archiveTree, safeSymlink } from "./archive.ts"
 import { auVersion } from "./version.ts"
 import { manifestPlugins, assetName } from "./catalog.ts"
-import { omitSdkSources } from "./source-bundles.ts"
-import { unzipSync } from "fflate"
 
 test("VST3 suite identities preserve saved Heron projects", () => {
   assert.deepEqual(
@@ -20,8 +18,8 @@ test("VST3 suite identities preserve saved Heron projects", () => {
     ]
   )
   assert.equal(
-    assetName("0.6.4", "macos-universal", "vst3", true),
-    "heron-plugins-0.6.4-macos-universal-vst3-symbols.zip"
+    assetName("0.6.4", "macos-universal", "vst3"),
+    "heron-plugins-0.6.4-macos-universal-vst3.zip"
   )
   assert.deepEqual(
     manifestPlugins("au2").map((entry) => [entry.builtinId, entry.nativeId]),
@@ -39,21 +37,6 @@ test("AU component version changes with the suite version and rejects overflow",
   assert.equal(auVersion("1.2.3-rc.1"), 66051)
   assert.throws(() => auVersion("1.256.0"))
   assert.throws(() => auVersion("1.0.256"))
-})
-
-test("published source bundles omit confidential SDK content and its manifest entries", async () => {
-  const bytes = await readFile(new URL("./fixtures/source-bundle.src.zip", import.meta.url))
-  const filtered = omitSdkSources(bytes, "/licensed/AAX_SDK")
-  const files = unzipSync(filtered)
-  assert.deepEqual(Object.keys(files).sort(), ["files/workspace/plugin.rs", "manifest.json"])
-  const manifest = JSON.parse(Buffer.from(files["manifest.json"]!).toString("utf8")) as {
-    debug_id: string
-    files: Record<string, unknown>
-  }
-  assert.equal(manifest.debug_id, "1b3afa8f-9b30-395b-af42-84dd8fcd3ca7")
-  assert.deepEqual(Object.keys(manifest.files), ["files/workspace/plugin.rs"])
-  assert.equal(filtered.includes(Buffer.from("SDK source fixture")), false)
-  assert.throws(() => omitSdkSources(Buffer.from("unknown format"), "/licensed/AAX_SDK"))
 })
 
 test("bundle archives reject links escaping their published root", async () => {

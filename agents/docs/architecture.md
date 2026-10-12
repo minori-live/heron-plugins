@@ -172,10 +172,9 @@ behavior when changing a format boundary; producer unit tests alone do not
 establish fault containment inside arbitrary hosts.
 
 The host owns process lifetime and fatal-error handling. Plug-ins must not
-install conflicting signal, panic, logging or crash handlers. This release has
-no plug-in-side Sentry configuration, upload or runtime reporting. Offline debug
-and source archive generation does not initialize a reporting client; Heron
-owns uploading its pinned VST3 symbols to its existing project.
+install conflicting signal, panic, logging or crash handlers. Plug-ins do not
+integrate with Sentry or publish symbol archives. Heron's application diagnostics
+remain owned by Heron. See [ADR 0005](adr/0005-runtime-only-releases.md).
 
 Do not silently change a creative setting, bypass a high-load processor or alter
 host transport in response to load. Ordinary failures retain an explicit last

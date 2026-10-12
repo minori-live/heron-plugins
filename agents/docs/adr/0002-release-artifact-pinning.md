@@ -5,6 +5,7 @@
 - Owners: project maintainers
 - Scope: producer release assets and Heron's VST3 dependency lock; updates the
   artifact-pinning part of [ADR 0001](0001-independent-plugin-releases.md)
+- Symbol distribution is superseded by [ADR 0005](0005-runtime-only-releases.md).
 
 ## Context
 

@@ -56,7 +56,7 @@ undocumented_unsafe_blocks = "warn"
 [profile.release]
 codegen-units = 1
 lto = "thin"
-# Producer symbols must match the binaries consumed by Heron and other DAWs.
+# Keep compiler debug information available for local debugging.
 debug = 2
 
 [patch.crates-io]

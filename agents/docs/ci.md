@@ -4,20 +4,20 @@
 The stable required check is `Gate`; it succeeds only when both workflows pass.
 The project has no website or Pages deployment.
 
-Test runs Linux x64, Windows x64 and macOS: formatting, lint, TypeScript and
-artifact-contract checks, Rust fmt/Clippy/tests, historical state compatibility,
-and each plug-in's separate real-time allocation checks. Rust coverage is
-uploaded with the three Heron-compatible platform flags, then Codecov publishes
-merged statuses. A full optional-adapter check does not imply licensed AAX
-wrapper validation.
+Test runs release-tooling tests, Clippy, Rust tests with coverage, historical
+state compatibility and each plug-in's separate real-time allocation checks on
+Linux x64, Windows x64 and macOS. Formatting, source lint, TypeScript, version and
+dependency checks run once on Linux. Coverage provides the workspace Rust test
+pass on each platform. Codecov merges the three platform reports.
 
 Build packages VST3 on Windows x64, Linux x64, Linux arm64 and universal macOS;
-macOS also packages AUv2 and a disk image. PR smoke builds disable LTO but retain
-full matching debug information. Tag releases keep thin LTO. The shared setup
-uses the locked mise toolchain and pnpm lockfile, pinned VST3 SDK and sccache
-version. Compiler-cache writes come from main/tags; PRs read shared caches.
-Check jobs cache Cargo targets, while packaging jobs cache downloads. Bundles
-and symbols are retained as workflow artifacts for 90 days.
+macOS also packages AUv2 and a disk image. PR smoke builds disable LTO; tag
+releases keep thin LTO. The shared setup
+uses the locked mise toolchain, pnpm lockfile and pinned sccache version. Only
+packaging jobs fetch the pinned VST3 SDK for bundle probes. Compiler-cache writes
+come from main/tags; PRs read shared caches.
+Check jobs cache Cargo targets, while packaging jobs cache downloads. Runtime
+bundles and installers are retained as workflow artifacts for 90 days.
 
 ## Native artifact validation
 
@@ -29,13 +29,7 @@ checked again after cargo-truce's internal builds. Dirty development builds are
 smoke evidence and cannot be published as source-pinned releases.
 Deployment target is macOS 14.2 and target CPU is baseline. Metadata stamping,
 license insertion, universal linking and all executable changes happen before
-signing. VST3 symbols are generated from each final linked MH_BUNDLE, because its
-UUID differs from the original Cargo dylib. AU symbols preserve Cargo's packed
-DWARF: packaging only copies/lipos those dylibs, and every original slice must
-match the final module UUID before merging. No UUID/address rewriting is allowed.
-Both formats must resolve the actual final process-function address to an owned
-Rust source line on each architecture, including EQ's `processor.rs`. A matching
-UUID or generic debug-information flag alone cannot establish completeness.
+signing.
 
 After archiving, the runtime ZIP is unpacked and verified. Every VST3 bundle's
 actual factory must expose the expected fixed class ID. All four AU components
@@ -85,9 +79,6 @@ in that temporary keychain. Authentication errors produce a fixed diagnostic;
 submissions continue to use the private-key file directly. The pipeline requires a valid Developer ID Application
 identity, accepted notarization, verified bundle seals and stapled DMG. Missing
 credentials fail the release; ad-hoc development builds stay available.
-No plugin-side Sentry DSN, organization/project, upload token or runtime capture
-is configured in this release. The local Sentry CLI only checks debug files and
-generates source bundles; it does not make telemetry or upload requests.
 
 To troubleshoot credentials before a full build, manually dispatch Build with
 `validate_apple_credentials` enabled. This mode runs the same normalization,
@@ -124,8 +115,8 @@ consumer and an initialized release lock; otherwise the job fails with a
 bootstrap instruction. It never runs scripts from an upgrade branch. The job
 reuses Heron's `pnpm plugins:update --latest` to resolve the stable release,
 source commit and filenames, followed by `plugins:prepare` for the actual Linux
-x64 runtime and symbol archives. Preparation validates the manifests, complete
-bundle set, binary architecture and matching Debug IDs. An existing pending
+x64 runtime archive. Preparation validates its manifest, complete bundle set
+and binary architecture. An existing pending
 branch's lock participates in downgrade and same-version source/filename checks.
 PR CI covers the remaining platforms and native integration.
 
@@ -164,18 +155,10 @@ clears old extraction output and rejects missing SDK files. Configure Avid's ful
 DigiShell validator in `AAX_VALIDATOR`.
 
 Mac/Windows AAX builds contain two actual modules per plug-in: the C++ wrapper
-and the Rust sidecar. Both need matching full debug files; macOS needs both
-architectures for each. Wrapper CXXFLAGS include debug information and Windows
-linking requires full PDB generation. Activation must verify actual wrapper
-PDB/DWARF IDs and source redistribution handling, then validate installed final
-archives with `cargo truce validate --aax --aax-tests full`. Each plug-in must
+and the Rust sidecar. Validate installed final archives with
+`cargo truce validate --aax --aax-tests full`. Each plug-in must
 produce a nonzero passing test tally; missing-validator/load-only/skip fallbacks
 are forbidden. Existing installations are restored afterward.
-Source generation removes licensed SDK files and their manifest entries by
-default (`publishSdkSources=false`), then verifies the rewritten bundles' debug
-IDs. Changing that setting requires explicit SDK source redistribution rights.
-Debug extraction happens before the PACE seal; IDs are checked again after
-signing, and bundles are never re-signed afterward.
 
 Release requires `PACE_ACCOUNT`, `PACE_SIGN_ID` and
 `PACE_SIGNING_SERVICE_READY=true` on a provisioned runner. The signing command
@@ -194,5 +177,5 @@ runs only for tag releases on `heron-plugins-macos-aax` and
 `AAX_VALIDATOR_MACOS`, `AAX_VALIDATOR_WINDOWS` and
 `PACE_SIGNING_SERVICE_READY` variables after official onboarding. Normal package
 jobs use `--no-aax`; the dedicated job uses `--only-aax`, cannot overwrite the
-normal macOS DMG, and contributes four additional runtime/symbol ZIPs. The DMG
+normal macOS DMG, and contributes two additional runtime ZIPs. The DMG
 contains VST3 and AU; AAX uses separate ZIP downloads.

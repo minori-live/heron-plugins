@@ -76,20 +76,19 @@ by a named feature or runtime owner, rather than generic `types`, `helpers` or
 ### Producer tooling and native adapters
 
 - `scripts/` owns build orchestration, identity manifests, archive safety,
-  symbol/source matching, signing and release reconciliation. The native
+  signing and release reconciliation. The native
   `fixtures/` probes validate the final binary boundary.
 - Keep format-specific packaging and platform installation behavior in their
   owning adapters. An entry point should compose those adapters rather than
   accumulate their implementations.
 - Preserve complete bundles, licenses and resources. Validate unpacked runtime
-  archives and debug files against the modules actually shipped.
+  archives against the modules actually shipped.
 - Heron owns its artifact-consumer and host integration contract. The producer
   upgrade coordinator may execute that consumer from trusted Heron main, but
   MUST NOT execute code from a pending upgrade branch.
 - Plug-ins share the host DAW process. Do not take ownership of its global
-  logging, panic, signal or crash handlers. This release has no plug-in-side
-  runtime reporting or Sentry upload configuration; future reporting needs a
-  separate architecture decision.
+  logging, panic, signal or crash handlers. Plug-ins do not integrate with Sentry.
+  Future reporting needs a separate architecture decision.
 
 ## Real-time and thread boundaries
 

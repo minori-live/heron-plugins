@@ -2,14 +2,13 @@
 
 One suite version identifies all four plug-ins. The public producer repository
 is `minori-live/heron-plugins`; a published release tag is `v<VERSION>`. Published
-assets are immutable. A release has ten ZIP files and one macOS DMG while AAX is
-disabled. The publisher requires this exact asset set and creates GitHub artifact
+assets are immutable. A release has five runtime ZIP files and one macOS DMG
+while AAX is disabled. The publisher requires this exact asset set and creates GitHub artifact
 attestations for it.
 
 Platform IDs are `windows-x64`, `linux-x64`, `linux-arm64` and
 `macos-universal`. Runtime assets are
-`heron-plugins-<version>-<platform>-<format>.zip`; corresponding symbol assets are
-`heron-plugins-<version>-<platform>-<format>-symbols.zip`. Formats are `vst3`,
+`heron-plugins-<version>-<platform>-<format>.zip`. Formats are `vst3`,
 `au2` (macOS only) and gated `aax` (macOS/Windows only).
 
 A runtime ZIP has exactly `bundles/` and `bundle-manifest.json` at its root.
@@ -44,35 +43,18 @@ use eight-hex-digit `manufacturer:product:native-layout-ids`, with multiple
 registered layout IDs separated by commas; the catalog records the pinned
 Truce 6.3 wrapper's actual mono/stereo registration.
 
-A symbol ZIP has `symbols/` and `symbols-manifest.json` at its root. Its manifest
-contains `schemaVersion`, `version`, `sourceCommit`, `platform`, `format` and
-`modules`. Each module records `modulePath`, `binaryPath`, `debugId` and `arch`.
-`modulePath` points to a real DWARF/PDB/ELF debug file inside `symbols/`;
-`binaryPath` points to its matching executable inside the runtime ZIP. A
-universal DWARF file has separate records for its `x64` and `arm64` slices.
-Source bundles are associated with these debug IDs and archived under
-`symbols/`. Final binary/debug IDs and full debug information are checked
-offline before archiving; a format's symbols never include another format.
-For macOS VST3, DWARF is generated from the final linked MH_BUNDLE. AU packaging
-copies/lipos Cargo dylibs, so it merges their original complete packed DWARF only
-after each slice's UUID matches the final AU module. Neither UUIDs nor addresses
-are rewritten. Every final plug-in process function address must resolve to a
-positive line in its owned Rust source on both architectures; EQ additionally
-requires `processor.rs`. This rejects partial dSYMs that retain a matching UUID
-but have lost Rust compilation units after intermediate objects are removed.
-
-Heron locks only the four VST3 runtimes and corresponding VST3 symbol assets,
-recording the suite version, full source commit and eight asset filenames. The
-consumer resolves the tag's commit and requires a published stable release with
-all eight files. Updates reject downgrades and changes to the source commit or
-asset names of an already pinned version, including pending upgrades.
+Heron locks the four VST3 runtimes, recording the suite version, full source
+commit and four asset filenames. The consumer resolves the tag's commit and
+requires a published stable release with all four runtime files. Older releases
+remain usable through their runtime archives. Updates reject downgrades and changes to
+the source commit or asset names of an already pinned version, including pending
+upgrades.
 
 Heron caches downloads by version, platform and filename. It validates archive
 paths, manifests, complete bundle contents and actual executable architectures
-before staging. Matching symbols must carry the final modules' Debug IDs for
-every architecture. Real VST3 probes verify the exported identities and loading
-behavior; catalog metadata alone does not establish host compatibility. Heron
-stages complete released bundles and uploads their matching symbols using its
-own project credentials. AU/AAX downloads serve other DAWs and remain outside
-Heron's built-in dependency lock. See
-[ADR 0002](adr/0002-release-artifact-pinning.md) for the pinning decision.
+before staging. Real VST3 probes verify exported identities and loading behavior.
+Plug-in symbols are neither published nor uploaded to Sentry. Heron's own
+application symbol uploads remain independent.
+AU/AAX downloads serve other DAWs and remain outside Heron's built-in dependency
+lock. See [ADR 0002](adr/0002-release-artifact-pinning.md) for pinning and
+[ADR 0005](adr/0005-runtime-only-releases.md) for the runtime-only release contract.

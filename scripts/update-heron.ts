@@ -82,9 +82,9 @@ async function remoteCommit(command: UpdateCommand, ref: string): Promise<string
 function pullBody(version: string, sourceCommit: string): string {
   return `Update the bundled VST3 suite to [Heron Plugins ${version}](https://github.com/minori-live/heron-plugins/releases/tag/v${version}), produced from commit \`${sourceCommit}\`.
 
-The lock records the suite version, source commit and release files for macOS universal, Windows x64, Linux x64 and Linux arm64, including matching crash symbols.
+The lock records the suite version, source commit and runtime release files for macOS universal, Windows x64, Linux x64 and Linux arm64.
 
-The producer verified the actual Linux x64 runtime and symbol archives using Heron's artifact consumer. Normal Heron pull-request CI verifies native integration and packaging across the supported platforms. Merge this PR manually to deliver the suite with a future Heron application release.
+The producer prepared the Linux x64 runtime archive using Heron's artifact consumer. Normal Heron pull-request CI verifies native integration and packaging across the supported platforms. Merge this PR manually to deliver the suite with a future Heron application release.
 `
 }
 
@@ -153,18 +153,9 @@ export async function maintainHeronUpgrade(options: {
       ...pendingArgs,
       ...(options.version ? ["--", options.version] : ["--latest"])
     ])
-    // Always validate both final consumed archives, including retries where the
+    // Always prepare the runtime archive, including retries where the
     // main or pending lock already names this version.
     await command("mise", ["exec", "--", "pnpm", "plugins:prepare", "--platform", "linux-x64"])
-    await command("mise", [
-      "exec",
-      "--",
-      "pnpm",
-      "plugins:prepare",
-      "--platform",
-      "linux-x64",
-      "--symbols"
-    ])
     const changed = (await command("git", ["diff", "--name-only", "HEAD"])).trim()
     if (changed && changed !== LOCK_FILE)
       throw new Error("Consumer validation modified unrelated tracked files")

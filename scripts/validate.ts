@@ -2,7 +2,6 @@ import { join } from "node:path"
 import { homedir } from "node:os"
 import { bundleName, plugins, type Format, type Platform } from "./catalog.ts"
 import { root, run, target } from "./process.ts"
-import { debugInfo } from "./symbols.ts"
 import { auVersion } from "./version.ts"
 import { waitForAuRegistration, withInstalledAuBundles } from "./au-registration.ts"
 
@@ -106,13 +105,6 @@ export async function validateBundles(
             `${plugin.name}.${platform === "windows-x64" ? "vst3" : "so"}`
           )
     if (platform === "macos-universal") {
-      const info = debugInfo(binary)
-      if (
-        info.variants.length !== 2 ||
-        !info.variants.some((entry) => entry.arch === "arm64") ||
-        !info.variants.some((entry) => entry.arch === "x86_64")
-      )
-        throw new Error("Missing universal plugin architecture")
       for (const architecture of ["arm64", "x86_64"])
         run("arch", [`-${architecture}`, probe, binary, plugin.nativeId])
     } else run(probe, [binary, plugin.nativeId])

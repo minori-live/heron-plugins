@@ -12,7 +12,6 @@ import {
 import { root, run, sourceCommit, target } from "./process.ts"
 import { stageLicenses } from "./licenses.ts"
 import { notarize, signMacBundle, stampVersion } from "./sign.ts"
-import { stageSymbols, verifySymbolIds } from "./symbols.ts"
 import { readVersion } from "./version.ts"
 import { validateBundles } from "./validate.ts"
 import { aaxEnabled, prepareAax, signAax, validateAax } from "./aax.ts"
@@ -20,16 +19,11 @@ import { createMacDmg } from "./dmg.ts"
 
 if (import.meta.main) {
   const args = process.argv.slice(2)
-  if (
-    args.some(
-      (arg) => !["--release", "--skip-symbols", "--aax", "--no-aax", "--only-aax"].includes(arg)
-    )
-  )
-    throw new Error("Usage: build.ts [--release] [--skip-symbols] [--aax | --no-aax | --only-aax]")
+  if (args.some((arg) => !["--release", "--aax", "--no-aax", "--only-aax"].includes(arg)))
+    throw new Error("Usage: build.ts [--release] [--aax | --no-aax | --only-aax]")
   if (args.filter((arg) => ["--aax", "--no-aax", "--only-aax"].includes(arg)).length > 1)
     throw new Error("Choose only one AAX build mode")
   const release = args.includes("--release")
-  if (release && args.includes("--skip-symbols")) throw new Error("Release symbols are required")
   const platform = hostPlatform()
   const version = await readVersion()
   const commit = sourceCommit()
@@ -57,18 +51,13 @@ if (import.meta.main) {
     (release && !args.includes("--no-aax") && !platform.startsWith("linux") && (await aaxEnabled()))
   ) {
     if (!(await aaxEnabled())) throw new Error("AAX is explicitly disabled in release-config.json")
-    if (args.includes("--skip-symbols"))
-      throw new Error("AAX wrapper/sidecar symbols are required for validation")
     await prepareAax(release)
     if (platform.startsWith("linux")) throw new Error("AAX is unsupported on Linux")
     if (!formats.includes("aax")) formats.push("aax")
   }
   const env: NodeJS.ProcessEnv = {
     CARGO_INCREMENTAL: "0",
-    MACOSX_DEPLOYMENT_TARGET: "14.2",
-    // Do not produce stripped PR artifacts: each downloadable bundle has matching symbols.
-    CARGO_PROFILE_RELEASE_DEBUG: "2",
-    CARGO_PROFILE_RELEASE_STRIP: "none"
+    MACOSX_DEPLOYMENT_TARGET: "14.2"
   }
   if (platform === "macos-universal") {
     run("rustup", ["target", "add", "aarch64-apple-darwin", "x86_64-apple-darwin"])
@@ -91,9 +80,7 @@ if (import.meta.main) {
       {
         env: {
           ...env,
-          TRUCE_SIGNING_IDENTITY: "-",
-          CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: "packed",
-          ...(formats.includes("aax") ? { CXXFLAGS: "-g" } : {})
+          TRUCE_SIGNING_IDENTITY: "-"
         }
       }
     )
@@ -101,17 +88,13 @@ if (import.meta.main) {
     if (formats.includes("vst3"))
       run("cargo", ["truce", "build", "--vst3", "--target-cpu", "baseline"], { env })
     if (formats.includes("aax"))
-      run("cargo", ["truce", "build", "--aax", "--target-cpu", "baseline"], {
-        env: { ...env, CXXFLAGS: "/Zi", LDFLAGS: "/DEBUG:FULL" }
-      })
+      run("cargo", ["truce", "build", "--aax", "--target-cpu", "baseline"], { env })
   }
   // cargo-truce does not expose --locked for every internal Cargo invocation.
   requireCleanSource()
   for (const format of formats) {
     const stage = join(target, "release-stage", platform, format)
-    const symbolStage = join(target, "symbol-stage", platform, format)
     await rm(stage, { recursive: true, force: true })
-    await rm(symbolStage, { recursive: true, force: true })
     await mkdir(join(stage, "bundles"), { recursive: true })
     for (const plugin of plugins) {
       const name = bundleName(plugin, format)
@@ -129,17 +112,7 @@ if (import.meta.main) {
       join(stage, "bundle-manifest.json"),
       `${JSON.stringify({ schemaVersion: 1, version, sourceCommit: commit, platform, plugins: manifestPlugins(format) }, null, 2)}\n`
     )
-    if (!args.includes("--skip-symbols")) {
-      await stageSymbols(stage, symbolStage, version, commit, platform, format)
-      await archiveTree(
-        symbolStage,
-        join(target, "release-assets", assetName(version, platform, format, true))
-      )
-    }
-    if (format === "aax" && release) {
-      await signAax(stage)
-      await verifySymbolIds(stage, symbolStage)
-    }
+    if (format === "aax" && release) await signAax(stage)
     const output = join(target, "release-assets", assetName(version, platform, format))
     await archiveTree(stage, output)
     if (release && platform === "macos-universal") notarize(output)

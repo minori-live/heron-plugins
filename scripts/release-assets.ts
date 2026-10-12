@@ -12,9 +12,7 @@ if (import.meta.main) {
   for (const platform of platforms) {
     const formats: Format[] = platform === "macos-universal" ? ["vst3", "au2"] : ["vst3"]
     if ((await aaxEnabled()) && !platform.startsWith("linux")) formats.push("aax")
-    for (const format of formats)
-      for (const symbols of [false, true])
-        expected.push(assetName(version, platform, format, symbols))
+    for (const format of formats) expected.push(assetName(version, platform, format))
   }
   expected.push(`heron-plugins-${version}-macos-universal.dmg`)
   expected.sort()
