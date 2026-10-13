@@ -16,8 +16,42 @@ env:
   RUST_BACKTRACE: "1"
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
+  MACOSX_DEPLOYMENT_TARGET: "14.2"
 jobs:
+  revox-models:
+    name: Prepare pinned Revox models
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v5.1.1
+        with:
+          version: 2026.10.6
+          install_args: node
+      - name: Export FCPE and acquire Revox once for all native checks
+        run: |
+          mise install uv@0.11.1
+          mise exec uv@0.11.1 -- uv venv --python 3.12.13 target/revox/venv
+          mise exec uv@0.11.1 -- uv pip install --python target/revox/venv/bin/python --require-hashes -r scripts/revox/requirements.lock
+          target/revox/venv/bin/python scripts/revox/export_fcpe.py
+          node scripts/fetch-revox-model.ts
+      - uses: actions/upload-artifact@v7
+        with:
+          name: revox-models
+          path: |
+            target/revox/fcpe.onnx
+            target/revox/fcpe-export.json
+            target/revox/fcpe-upstream/LICENSE
+            target/revox/models/
+          if-no-files-found: error
+          retention-days: 1
   checks:
+    needs: revox-models
     name: Checks (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
@@ -51,6 +85,11 @@ jobs:
           cargo shear
       - name: Test release tooling
         run: node --test scripts/*.test.ts
+      - name: Restore build-verified inference models
+        uses: actions/download-artifact@v8
+        with:
+          name: revox-models
+          path: target/revox
       - name: Lint Rust
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test Rust with coverage
@@ -61,6 +100,7 @@ jobs:
           cargo test --locked -p heron-eq --features rt-paranoid
           cargo test --locked -p heron-sine --features rt-paranoid
           cargo test --locked -p heron-metronome --features rt-paranoid
+          cargo test --locked -p heron-revox --features rt-paranoid
       - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -82,3 +82,33 @@ See [CI and release operations](agents/docs/ci.md),
 The [EQ implementation notes](agents/docs/heron-eq.md) preserve its DSP, editor
 and compatibility contracts.
 Licensed under [GPL-3.0-only](LICENSE); bundles include third-party notices.
+
+## Heron Revox development build
+
+Heron Revox is a new vocal resynthesis and pitch-shifting effect using FCPE and
+Revox Vocoder 1.5. It has its own VST3/AUv2 identity and is currently packaged
+separately from the four-plug-in release suite above. The development packaging
+entry point supports Apple Silicon macOS 14.2 or later. Intel macOS has no
+matching ORT prebuilt archive; Windows and Linux plug-in bundles have not yet
+been validated.
+
+Acquire and export the pinned models using the commands in the
+[Revox development notes](agents/docs/environment.md), then run:
+
+```sh
+pnpm build:revox
+pnpm build:revox --au
+```
+
+The default builds VST3; `--au` also builds an AUv2 component and runs `auval`.
+The ZIP and verified bundles are under `target/revox/bundles/` and
+`target/revox/archive-check/macos-arm64/bundles/`. Copy the complete VST3 bundle
+to `~/Library/Audio/Plug-Ins/VST3/` or the AU component to
+`~/Library/Audio/Plug-Ins/Components/`, then restart the DAW. These development
+bundles use ad-hoc signing and are not notarized release downloads.
+
+The inference graphs are embedded; Python and model downloads are unnecessary
+on the playback machine. Each bundle includes the WebGPU Dawn library, FCPE's
+MIT license, the Revox model provenance using its GPL-3.0-only option, and the
+ONNX Runtime/Dawn license notices. AAX remains disabled by the suite's existing
+licensed-SDK and signing requirements.

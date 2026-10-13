@@ -1,7 +1,9 @@
 # Agent Guide
 
 Heron Plugins owns Heron Gain, Heron EQ, Heron Sine, Heron Metronome and their shared Rust
-UI. Heron consumes released VST3 artifacts; this repository also publishes AUv2
+UI. Heron Revox is a separate development plug-in with embedded FCPE/Revox models.
+Prepare its pinned models before workspace Cargo checks; see the environment guide.
+Heron consumes released VST3 artifacts; this repository also publishes AUv2
 components for macOS. AAX is opt-in and requires the licensed SDK and PACE release
 signing prerequisites described in `agents/docs/ci.md`.
 

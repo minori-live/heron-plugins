@@ -1,0 +1,32 @@
+[package]
+name = "heron-revox-dsp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rustfft.workspace = true
+ort.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+ort = { workspace = true, features = ["coreml", "webgpu"] }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+ort = { workspace = true, features = ["nvrtx", "tensorrt", "cuda", "directml"] }
+
+[target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
+ort = { workspace = true, features = ["directml"] }
+
+[target.'cfg(all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))'.dependencies]
+ort = { workspace = true, features = ["nvrtx", "tensorrt", "cuda"] }
+
+[dev-dependencies]
+hound.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

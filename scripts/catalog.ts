@@ -48,7 +48,20 @@ export const plugins = [
     aaxIds: "48524F4E:48524D54:49534C57"
   }
 ] as const
-export type Plugin = (typeof plugins)[number]
+// Revox has a separate Apple Silicon development bundle while the existing
+// release suite keeps its universal macOS and cross-platform artifact contract.
+export const revox = {
+  builtinId: "live.minori.heron.revox",
+  name: "Heron Revox",
+  kind: "effect",
+  auType: "aufx",
+  crate: "heron-revox",
+  slug: "revox",
+  nativeId: "801E1EF7D1FBA46DD7EE039C0317622C",
+  fourcc: "HRRV"
+} as const
+
+export type Plugin = (typeof plugins)[number] | typeof revox
 
 export function hostPlatform(): Platform {
   if (process.platform === "darwin") return "macos-universal"

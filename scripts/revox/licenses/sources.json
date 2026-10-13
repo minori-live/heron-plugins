@@ -1,0 +1,22 @@
+{
+  "onnxruntime_version": "1.31.0",
+  "dawn_version": "v20260916.214021",
+  "dawn_version_source": "https://github.com/microsoft/onnxruntime/blob/v1.31.0/cmake/deps.txt",
+  "files": [
+    {
+      "file": "onnxruntime-LICENSE",
+      "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.31.0/LICENSE",
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+    },
+    {
+      "file": "onnxruntime-ThirdPartyNotices.txt",
+      "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.31.0/ThirdPartyNotices.txt",
+      "sha256": "143764b952fdb1a7c69ce653bfba74a7744d6a8a573bfb73e235fba356c83de3"
+    },
+    {
+      "file": "dawn-LICENSE",
+      "source": "https://raw.githubusercontent.com/google/dawn/v20260916.214021/LICENSE",
+      "sha256": "0493f897193af1796d5054659f45ec7d4c5af648fa67a99f01d30e55cc805abc"
+    }
+  ]
+}
