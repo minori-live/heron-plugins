@@ -2,15 +2,33 @@ use super::*;
 
 struct Identity;
 impl Renderer for Identity {
-    fn render(&mut self, input: &[f32], _shift: f32) -> Result<Vec<f32>, DspError> {
+    fn render_channels(
+        &mut self,
+        input: &[Vec<f32>],
+        _shift: f32,
+    ) -> Result<Vec<Vec<f32>>, DspError> {
+        assert_eq!(input.len(), 2, "the stereo window must arrive as one batch");
+        assert!(input.iter().all(|channel| channel.len() == MODEL_WINDOW));
         Ok(input.to_vec())
     }
 }
 
 struct ShiftGain;
 impl Renderer for ShiftGain {
-    fn render(&mut self, input: &[f32], shift: f32) -> Result<Vec<f32>, DspError> {
-        Ok(input.iter().map(|sample| sample * (1.0 + shift)).collect())
+    fn render_channels(
+        &mut self,
+        input: &[Vec<f32>],
+        shift: f32,
+    ) -> Result<Vec<Vec<f32>>, DspError> {
+        Ok(input
+            .iter()
+            .map(|channel| {
+                channel
+                    .iter()
+                    .map(|sample| sample * (1.0 + shift))
+                    .collect()
+            })
+            .collect())
     }
 }
 
@@ -34,7 +52,7 @@ fn packet(start: u64, channels: usize, shift: f32, signal: impl Fn(u64) -> [f32;
 }
 
 #[test]
-fn context_crop_and_overlap_keep_stereo_identity_at_original_sample_times() {
+fn one_stereo_batch_keeps_channels_crop_and_overlap_at_original_sample_times() {
     let mut stream = Stream::new(Identity, MODEL_RATE, geometry());
     let signal = |sample: u64| {
         [
@@ -65,6 +83,30 @@ fn context_crop_and_overlap_keep_stereo_identity_at_original_sample_times() {
             }
         }
     }
+}
+
+#[test]
+fn missing_returned_channel_fails_before_publishing_partial_stereo_audio() {
+    struct MissingRight;
+    impl Renderer for MissingRight {
+        fn render_channels(
+            &mut self,
+            input: &[Vec<f32>],
+            _: f32,
+        ) -> Result<Vec<Vec<f32>>, DspError> {
+            Ok(vec![input[0].clone()])
+        }
+    }
+    let mut stream = Stream::new(MissingRight, MODEL_RATE, geometry());
+    stream.push(&packet(0, 2, 0.0, |_| [0.2, -0.7]));
+    stream.push(&packet(128, 2, 0.0, |_| [0.2, -0.7]));
+    assert!(matches!(
+        stream.render_ready(),
+        Err(DspError::OutputShape {
+            model: "Revox",
+            output: "waveform batch",
+        })
+    ));
 }
 
 #[test]

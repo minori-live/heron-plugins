@@ -156,7 +156,8 @@ async function stageModelNotices(bundle: string) {
   await cp(join(target, "revox/fcpe-upstream/LICENSE"), join(licenses, "FCPE-LICENSE"))
   await cp(join(root, "scripts/revox/fcpe-source.json"), join(licenses, "fcpe-source.json"))
   await cp(join(target, "revox/fcpe-export.json"), join(licenses, "fcpe-export.json"))
-  for (const name of ["revox-README.md", "revox-manifest.json"])
+  await cp(join(target, "revox/fcpe-plugin-export.json"), join(licenses, "fcpe-plugin-export.json"))
+  for (const name of ["revox-README.md", "revox-manifest.json", "revox-plugin-manifest.json"])
     await cp(join(target, "revox/models", name), join(licenses, name))
   await appendFile(
     join(resources, "THIRD_PARTY_NOTICES.txt"),

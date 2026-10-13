@@ -7,19 +7,20 @@ const PREPARE: &str = "prepare the pinned models from the repository root:\n\
     uv venv --python 3.12 target/revox/venv\n\
     uv pip install --python target/revox/venv/bin/python --require-hashes -r scripts/revox/requirements.lock\n\
     target/revox/venv/bin/python scripts/revox/export_fcpe.py\n\
+    target/revox/venv/bin/python scripts/revox/prepare_vocoder.py\n\
     (on Windows use target/revox/venv/Scripts/python.exe for the Python path)";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manifest = env::var("CARGO_MANIFEST_DIR")?;
     let models = Path::new(&manifest).join("../../target/revox");
     embed(
-        &models.join("fcpe.onnx"),
-        "3fe393cb1942b779a656168043e5d1a0e9ef6ecda05b225caced05b51063faa4",
+        &models.join("fcpe-plugin.onnx"),
+        "555002bc3cb2c4e09d90a821f875ba38d642bad2407172c90a1346f58f7a9130",
         "HERON_REVOX_FCPE_MODEL",
     )?;
     embed(
-        &models.join("models/revox.onnx"),
-        "e7a94cf11388ad12ba9ba1316029fdcbf15f77e342559bd1e9d6971a3f8ee020",
+        &models.join("models/revox-plugin.onnx"),
+        "16e620c5a634530d3dbb0ec5562c6cf4ff16bec45f08c5b9c0d10220d6fcff87",
         "HERON_REVOX_VOCODER_MODEL",
     )?;
     Ok(())
