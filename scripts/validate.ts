@@ -1,9 +1,19 @@
 import { join } from "node:path"
 import { homedir } from "node:os"
-import { bundleName, plugins, type Format, type Platform } from "./catalog.ts"
+import { bundleName, plugins, revox, type Format, type Platform } from "./catalog.ts"
 import { root, run, target } from "./process.ts"
 import { auVersion } from "./version.ts"
 import { waitForAuRegistration, withInstalledAuBundles } from "./au-registration.ts"
+import { assertNoExternalMsvcRuntime } from "./windows-runtime.ts"
+
+// Installed bundles must ignore a DAW's unrelated ORT override and use their
+// own runtime and embedded graphs, with no build-time library search paths.
+const revoxEnvironment: NodeJS.ProcessEnv = {
+  ORT_DYLIB_PATH: join(target, "must-not-load-host-onnxruntime"),
+  LD_LIBRARY_PATH: "",
+  DYLD_LIBRARY_PATH: "",
+  DYLD_FALLBACK_LIBRARY_PATH: ""
+}
 
 async function validateAu(stage: string, build: string, version: string) {
   for (const architecture of ["arm64", "x86_64"]) {
@@ -60,6 +70,11 @@ async function validateAu(stage: string, build: string, version: string) {
             throw new Error(`AU validation failed for ${plugin.name}/${architecture}`)
           console.log(`AU identity, version, load and auval passed: ${plugin.name}/${architecture}`)
         }
+        for (const forceCpu of ["0", "1"])
+          run("arch", [`-${architecture}`, join(build, "revox-au-probe")], {
+            cwd: stage,
+            env: { ...revoxEnvironment, HERON_REVOX_FORCE_CPU: forceCpu }
+          })
       }
     }
   )
@@ -89,6 +104,8 @@ export async function validateBundles(
   }
   const probe =
     platform === "windows-x64" ? join(build, "Release/vst3-probe.exe") : join(build, "vst3-probe")
+  const revoxProbe =
+    platform === "windows-x64" ? join(build, "Release/revox-probe.exe") : join(build, "revox-probe")
   for (const plugin of plugins) {
     const bundle = join(stage, "bundles", bundleName(plugin, format))
     const binary =
@@ -105,8 +122,27 @@ export async function validateBundles(
             `${plugin.name}.${platform === "windows-x64" ? "vst3" : "so"}`
           )
     if (platform === "macos-universal") {
-      for (const architecture of ["arm64", "x86_64"])
+      for (const architecture of ["arm64", "x86_64"]) {
         run("arch", [`-${architecture}`, probe, binary, plugin.nativeId])
-    } else run(probe, [binary, plugin.nativeId])
+        if (plugin.builtinId === revox.builtinId)
+          for (const forceCpu of ["0", "1"])
+            run("arch", [`-${architecture}`, revoxProbe, binary], {
+              cwd: stage,
+              env: { ...revoxEnvironment, HERON_REVOX_FORCE_CPU: forceCpu }
+            })
+      }
+    } else {
+      if (platform === "windows-x64") {
+        await assertNoExternalMsvcRuntime(binary)
+        if (plugin.builtinId === revox.builtinId)
+          await assertNoExternalMsvcRuntime(join(bundle, "Contents/x86_64-win/onnxruntime.dll"))
+      }
+      run(probe, [binary, plugin.nativeId])
+      if (plugin.builtinId === revox.builtinId)
+        run(revoxProbe, [binary], {
+          cwd: stage,
+          env: { ...revoxEnvironment, HERON_REVOX_FORCE_CPU: "1" }
+        })
+    }
   }
 }

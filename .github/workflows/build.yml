@@ -78,8 +78,13 @@ jobs:
           persist-credentials: false
       - id: config
         run: echo "aax=$(jq -r '.aax.enabled' release-config.json)" >> "$GITHUB_OUTPUT"
-  package:
+  revox-models:
     needs: configuration
+    uses: ./.github/workflows/revox-models.yml
+    with:
+      artifact_name: revox-build-models
+  package:
+    needs: [configuration, revox-models]
     name: Package (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
@@ -104,6 +109,11 @@ jobs:
           github-token: ${{ github.event_name != 'pull_request' && github.token || '' }}
       - name: Fetch pinned VST3 SDK for bundle probes
         run: mise run sdk:vst3
+      - name: Restore build-verified inference models
+        uses: actions/download-artifact@v8
+        with:
+          name: revox-build-models
+          path: target/revox
       - name: Use a faster smoke-build profile
         if: ${{ !inputs.full_release_profile && !inputs.release }}
         run: |
@@ -112,6 +122,16 @@ jobs:
       - name: Ensure Rosetta for Intel AU validation
         if: runner.os == 'macOS'
         run: softwareupdate --install-rosetta --agree-to-license
+      - name: Prepare pinned Python for ONNX Runtime source builds
+        if: runner.os == 'macOS' || runner.os == 'Windows'
+        run: |
+          mise install uv@0.11.1
+          mise exec uv@0.11.1 -- uv venv --python 3.12.13 target/revox/runtime-venv
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            cygpath -w "$PWD/target/revox/runtime-venv/Scripts" >> "$GITHUB_PATH"
+          else
+            echo "$PWD/target/revox/runtime-venv/bin" >> "$GITHUB_PATH"
+          fi
       - name: Import release signing credentials
         id: apple
         if: ${{ inputs.release && runner.os == 'macOS' }}

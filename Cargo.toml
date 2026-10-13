@@ -17,7 +17,7 @@ resolver = "3"
 ignored = ["truce-vst3", "truce-au", "truce-aax"]
 
 [workspace.package]
-version = "0.8.0"
+version = "0.8.1"
 edition = "2024"
 rust-version = "1.98"
 license = "GPL-3.0-only"
@@ -30,9 +30,7 @@ criterion = { version = "0.8.2", features = ["html_reports", "csv_output"] }
 rustfft = "6.4.1"
 ort = { version = "=2.0.0-rc.14", default-features = false, features = [
   "std",
-  "download-binaries",
-  "tls-native",
-  "copy-dylibs",
+  "load-dynamic",
   "api-31"
 ] }
 hound = "3.5.1"

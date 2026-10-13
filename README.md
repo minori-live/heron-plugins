@@ -1,13 +1,11 @@
 # Heron Plugins
 
 Independently released plug-ins for [Heron](https://heron.minori.live/) and other
-DAWs. The release suite — Heron Gain, Heron EQ, Heron Sine and Heron Metronome —
-shares one version and preserves the existing Heron VST3 identities, parameter IDs
-and saved states. [Heron EQ](https://heron.minori.live/plugins/heron-eq) is the
-suite's parametric equalizer. Heron Revox is a separate development plug-in with
-its own VST3/AUv2 identity: a neural-vocoder-driven effect for removing vocal
-phase issues and for lower-loss pitch shifting, and it works well for harmonies
-and stacked vocals.
+DAWs. Heron Gain, Heron EQ, Heron Sine, Heron Metronome and Heron Revox share one
+suite version and preserve their VST3 identities, parameter IDs and saved states.
+[Heron EQ](https://heron.minori.live/plugins/heron-eq) is the suite's parametric
+equalizer. Revox is a neural-vocoder effect for vocal phase cleanup and pitch
+shifting, including harmonies and stacked vocals.
 
 | Plug-in         | Role                                                                                             |
 | --------------- | ------------------------------------------------------------------------------------------------ |
@@ -15,21 +13,20 @@ and stacked vocals.
 | Heron EQ        | Parametric equalizer with spectrum display ([intro](https://heron.minori.live/plugins/heron-eq)) |
 | Heron Sine      | MIDI sine synthesizer                                                                            |
 | Heron Metronome | MIDI click instrument; note 84 accents and note 72 beats                                         |
-| Heron Revox     | Neural vocoder for vocal phase cleanup and lower-loss pitch shifting (development package)       |
+| Heron Revox     | Neural vocoder for vocal phase cleanup and lower-loss pitch shifting                             |
 
 ## Formats and platforms
 
-**Release suite** (Gain, EQ, Sine, Metronome): GitHub Releases provide VST3
-bundles for Windows x64, Linux x64, Linux arm64 and universal macOS. macOS also
-includes AUv2 components and an installation disk image. AAX remains explicitly
-disabled until its SDK, signing service and Pro Tools validation are ready.
+The five-plug-in release suite provides VST3 bundles for Windows x64, Linux x64,
+Linux arm64 and universal macOS. macOS also includes AUv2 components and an
+installation disk image. macOS requires 14.2 or later. AAX remains disabled
+until the complete suite's SDK, identities, signing and native validation are ready.
 
-**Heron Revox**: packaged separately from the four-plug-in release suite. The
-development packaging entry point builds VST3 (and optionally AUv2) for Apple
-Silicon macOS 14.2 or later. Intel macOS has no matching ONNX Runtime (ORT)
-prebuilt archive in the pinned rc.14 matrix. Windows and Linux Rust inference
-paths are configured in `crates/revox-dsp`; native plug-in bundles for those
-platforms have not yet been validated.
+Revox includes its models and ONNX Runtime 1.31.0 inside every bundle. CPU
+inference requires no GPU driver or Python installation. macOS can use CoreML
+when available and always has CPU fallback. The Intel macOS runtime is built
+from the pinned upstream source release; both architectures are validated from
+the final archive. Release builds fail if Revox cannot render shifted audio.
 
 ## Install
 
@@ -44,7 +41,9 @@ brew install --cask minori-live/tap/heron-plugins
 
 That cask, maintained in
 [`minori-live/homebrew-tap`](https://github.com/minori-live/homebrew-tap)
-(`heron-plugins`), tracks the suite DMG only; it does not include Heron Revox.
+(`heron-plugins`), currently installs the four older plug-ins from the suite DMG.
+Its bundle list needs a separate tap update to install Revox; use the ZIP or DMG
+installation instructions above for Revox.
 Quit and restart the DAW after installing. Heron bundles its own checksum-pinned
 VST3 release and upgrades it with application updates.
 
@@ -115,24 +114,14 @@ The ZIP and verified bundles are under `target/revox/bundles/` and
 The inference graphs are embedded; Python and model downloads are unnecessary
 on the playback machine. Fixed processing windows automatically use batch 1 for
 mono or batch 2 for stereo, preserving each channel without additional batching
-delay. Each bundle includes the WebGPU Dawn library, FCPE's MIT license, the
-Revox model provenance using its GPL-3.0-only option, and the ONNX Runtime/Dawn
-license notices.
+delay. Each bundle includes ONNX Runtime, FCPE's MIT license, the Revox model
+provenance using its GPL-3.0-only option, and runtime license notices.
 
-Revox registers ONNX Runtime execution providers in priority order (CPU is always
-the final fallback; there is no backend mode selector):
-
-| Target              | Registration priority                           |
-| ------------------- | ----------------------------------------------- |
-| Apple Silicon macOS | CoreML → WebGPU → CPU                           |
-| Windows x64         | TensorRT RTX → TensorRT → CUDA → DirectML → CPU |
-| Windows arm64       | DirectML → CPU                                  |
-| Linux x64 / arm64   | TensorRT RTX → TensorRT → CUDA → CPU            |
-
-Native execution has been exercised on Apple Silicon. Windows/Linux GPU paths
-need matching runtimes (CUDA 13.2+ / cuDNN 9.23+ for the current ORT package)
-and still need hardware validation. WebGPU uses Dawn and remains experimental
-upstream. Intel macOS needs a compatible external ORT build via `ORT_LIB_PATH`.
+The focused Apple Silicon `build:revox` command remains available for development;
+`mise run build` packages the complete release suite on every release platform.
+For standalone Rust tests, first run `node scripts/revox-runtime.ts` and set
+`ORT_DYLIB_PATH` to its printed absolute path. Installed bundles ignore that
+variable and resolve their runtime relative to the plug-in module.
 
 ### Versioning and releases
 

@@ -1,4 +1,4 @@
-//! Ordered ONNX execution providers and explicit CPU recovery for DSP experiments.
+//! Bundled ONNX Runtime, ordered execution providers and explicit CPU recovery.
 
 use std::{
     path::Path,
@@ -15,6 +15,8 @@ use ort::{
 };
 use serde::Serialize;
 use thiserror::Error;
+
+mod library;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -61,7 +63,7 @@ pub struct BackendReport {
 #[derive(Debug, Error)]
 pub enum RuntimeError {
     #[error("could not initialize ONNX Runtime")]
-    Environment(#[source] Arc<ort::Error>),
+    Environment(#[source] Arc<InitializationError>),
     #[error("{backends:?} session failed during {stage:?}")]
     Session {
         backends: Vec<Backend>,
@@ -79,10 +81,23 @@ pub enum RuntimeError {
     },
 }
 
+#[derive(Debug, Error)]
+pub enum InitializationError {
+    #[error("could not resolve the bundled ONNX Runtime library")]
+    LibraryPath(#[source] std::io::Error),
+    #[error("could not load the bundled ONNX Runtime library")]
+    LibraryLoad(#[source] ort::LoadDynamicError),
+    #[cfg(windows)]
+    #[error("could not load ONNX Runtime and its bundle-local dependencies")]
+    LibraryDependencies(#[source] std::io::Error),
+    #[error("could not create the ONNX Runtime environment")]
+    Environment(#[source] ort::Error),
+}
+
 // ort 2.0 rc.14 allows only one environment initialization per linked library,
 // even after its last handle is dropped. Keep a strong handle so closing every
 // plug-in instance does not prevent a later instance from creating sessions.
-static ENVIRONMENT: OnceLock<Result<Environment, Arc<ort::Error>>> = OnceLock::new();
+static ENVIRONMENT: OnceLock<Result<Environment, Arc<InitializationError>>> = OnceLock::new();
 
 /// A handle to the shared ONNX environment used by Revox instances.
 ///
@@ -92,6 +107,7 @@ static ENVIRONMENT: OnceLock<Result<Environment, Arc<ort::Error>>> = OnceLock::n
 /// destruction belong off the audio callback.
 pub struct OrtRuntime {
     environment: Environment,
+    backends: &'static [Backend],
 }
 
 impl OrtRuntime {
@@ -99,16 +115,23 @@ impl OrtRuntime {
     /// Fails if the shared ONNX Runtime environment cannot initialize.
     pub fn new() -> Result<Self, RuntimeError> {
         let environment = ENVIRONMENT
-            .get_or_init(|| {
-                ort::init()
-                    .with_name("heron-revox-dsp")
-                    .with_telemetry(false)
-                    .build()
-                    .map_err(Arc::new)
-            })
+            .get_or_init(|| initialize().map_err(Arc::new))
             .clone()
             .map_err(RuntimeError::Environment)?;
-        Ok(Self { environment })
+        // Read configuration only on the caller's non-audio initialization path.
+        // This also lets final-archive probes establish CPU-only inference even
+        // on machines whose CoreML provider would otherwise register.
+        let backends = if std::env::var_os("HERON_REVOX_FORCE_CPU").as_deref()
+            == Some(std::ffi::OsStr::new("1"))
+        {
+            &[Backend::Cpu][..]
+        } else {
+            platform_backends()
+        };
+        Ok(Self {
+            environment,
+            backends,
+        })
     }
 
     /// Registers the platform's bundled providers in order on one session.
@@ -127,7 +150,7 @@ impl OrtRuntime {
     ) -> Result<(Session, BackendReport), RuntimeError> {
         let path = path.as_ref();
         load_with_policy(
-            platform_backends(),
+            self.backends,
             || session_builder(&self.environment),
             |builder, backend| provider(backend)?.register(builder),
             |builder| builder.commit_from_file(path),
@@ -147,7 +170,7 @@ impl OrtRuntime {
         model: &[u8],
     ) -> Result<(Session, BackendReport), RuntimeError> {
         load_with_policy(
-            platform_backends(),
+            self.backends,
             || session_builder(&self.environment),
             |builder, backend| provider(backend)?.register(builder),
             |builder| builder.commit_from_memory(model),
@@ -162,7 +185,7 @@ impl OrtRuntime {
         channels: usize,
     ) -> Result<(Session, BackendReport), RuntimeError> {
         load_with_policy(
-            platform_backends(),
+            self.backends,
             || {
                 Ok(session_builder(&self.environment)?
                     .with_dimension_override("batch", channels as i64)?)
@@ -171,6 +194,21 @@ impl OrtRuntime {
             |builder| builder.commit_from_memory(model),
         )
     }
+}
+
+fn initialize() -> Result<Environment, InitializationError> {
+    let path = library::path().map_err(InitializationError::LibraryPath)?;
+    #[cfg(windows)]
+    let _dependencies =
+        library::prepare(&path).map_err(InitializationError::LibraryDependencies)?;
+    // Always initialize explicitly before calling any ORT API. ort's implicit
+    // loader searches the host environment and panics on a missing library.
+    ort::init_from(path)
+        .map_err(InitializationError::LibraryLoad)?
+        .with_name("heron-revox-dsp")
+        .with_telemetry(false)
+        .build()
+        .map_err(InitializationError::Environment)
 }
 
 fn load_with_policy<T, B>(
@@ -262,7 +300,9 @@ fn session_builder(environment: &Environment) -> ort::Result<SessionBuilder> {
         // Override ort's automatic NPU policy; our explicit chain owns selection.
         .with_auto_device(AutoDevicePolicy::PreferCPU)?
         .with_optimization_level(GraphOptimizationLevel::All)?
-        .with_intra_threads(1)?
+        // Bound CPU work per session. Two threads sustain the measured stereo
+        // window on the release validation host; one exceeded its 160 ms hop.
+        .with_intra_threads(2)?
         .with_parallel_execution(false)?
         .with_intra_op_spinning(false)?
         .with_inter_op_spinning(false)?
@@ -272,34 +312,10 @@ fn session_builder(environment: &Environment) -> ort::Result<SessionBuilder> {
 
 fn platform_backends() -> &'static [Backend] {
     #[cfg(target_os = "macos")]
-    return &[Backend::CoreMl, Backend::WebGpu, Backend::Cpu];
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    return &[
-        Backend::NvRtx,
-        Backend::TensorRt,
-        Backend::Cuda,
-        Backend::DirectMl,
-        Backend::Cpu,
-    ];
-    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
-    return &[Backend::DirectMl, Backend::Cpu];
-    #[cfg(all(
-        target_os = "linux",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    ))]
-    return &[
-        Backend::NvRtx,
-        Backend::TensorRt,
-        Backend::Cuda,
-        Backend::Cpu,
-    ];
-    #[cfg(not(any(
-        target_os = "macos",
-        all(
-            any(target_os = "windows", target_os = "linux"),
-            any(target_arch = "x86_64", target_arch = "aarch64")
-        )
-    )))]
+    return &[Backend::CoreMl, Backend::Cpu];
+    // Released Windows/Linux runtimes contain CPU kernels and do not require
+    // CUDA, TensorRT or DirectML installations on the user's machine.
+    #[cfg(not(target_os = "macos"))]
     &[Backend::Cpu]
 }
 
@@ -311,40 +327,6 @@ fn provider(backend: Backend) -> ort::Result<ep::ExecutionProviderDispatch> {
             .with_compute_units(ep::coreml::ComputeUnits::All)
             .with_model_format(ep::coreml::ModelFormat::MLProgram)
             .build()),
-        #[cfg(target_os = "macos")]
-        Backend::WebGpu => Ok(ep::WebGPU::default().build()),
-        #[cfg(all(
-            target_os = "windows",
-            any(target_arch = "x86_64", target_arch = "aarch64")
-        ))]
-        Backend::DirectMl => Ok(ep::DirectML::default()
-            .with_device_filter(ep::directml::DeviceFilter::Gpu)
-            .with_performance_preference(ep::directml::PerformancePreference::HighPerformance)
-            .build()),
-        #[cfg(any(
-            all(target_os = "windows", target_arch = "x86_64"),
-            all(
-                target_os = "linux",
-                any(target_arch = "x86_64", target_arch = "aarch64")
-            )
-        ))]
-        Backend::NvRtx => Ok(ep::NVRTX::default().build()),
-        #[cfg(any(
-            all(target_os = "windows", target_arch = "x86_64"),
-            all(
-                target_os = "linux",
-                any(target_arch = "x86_64", target_arch = "aarch64")
-            )
-        ))]
-        Backend::TensorRt => Ok(ep::TensorRT::default().build()),
-        #[cfg(any(
-            all(target_os = "windows", target_arch = "x86_64"),
-            all(
-                target_os = "linux",
-                any(target_arch = "x86_64", target_arch = "aarch64")
-            )
-        ))]
-        Backend::Cuda => Ok(ep::CUDA::default().build()),
         _ => Err(ort::Error::new(
             "execution provider is not compiled for this target",
         )),
