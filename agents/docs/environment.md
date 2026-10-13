@@ -45,9 +45,11 @@ coverage and full-check mise tasks depend on this installation task. The
 Rust-only `check-fast` task does not install pnpm dependencies.
 
 `apm.yml` declares the agent skill dependencies and `apm.lock.yaml` pins their
-resolution. `apm install --frozen` restores the APM-managed skills under
-`.agents/skills/`; update those declarations and the lockfile rather than editing
-installed copies. The installed `stss` skill tightens defensive prose while
+resolution. Deployed skills under `.agents/skills/` are checked into Git so a
+fresh checkout can use them without a network install. `apm install --frozen`
+refreshes those deployed copies from the lockfile; update the declarations and
+lockfile rather than editing installed copies. Keep `apm_modules/` ignored as
+local APM cache. The installed `stss` skill tightens defensive prose while
 preserving facts and meaningful limits.
 
 ## Shell and command conventions

@@ -31,6 +31,6 @@ third_party/vst3sdk/
 *.p8
 
 
-# APM-managed dependencies and skills
+# APM package cache only. Deployed skills under .agents/skills/ are tracked so
+# fresh checkouts (including cloud agents) can use them without an install step.
 apm_modules/
-.agents/skills/
