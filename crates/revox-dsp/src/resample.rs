@@ -1,4 +1,5 @@
 //! Center-aligned, antialiased 48 kHz to 16 kHz conversion for FCPE.
+//! Input is zero-extended at both ends without renormalizing the edge kernels.
 
 const RADIUS: usize = 96;
 
@@ -84,5 +85,28 @@ mod tests {
             .unwrap()
             .0;
         assert_eq!(peak, 160);
+    }
+
+    #[test]
+    fn window_edges_match_explicit_zero_extension() {
+        let resampler = PitchResampler::new();
+        // Keep both endpoints nonzero to expose clamping or edge renormalization.
+        let input: Vec<_> = (0..257).map(|i| 0.25 + i as f32 / 512.0).collect();
+        let output = resampler.process(&input);
+
+        // Ten milliseconds of silence on each side moves both signal edges
+        // inside the buffer while preserving the 3:1 sampling phase.
+        let mut padded = vec![0.0; 480];
+        padded.extend_from_slice(&input);
+        padded.resize(padded.len() + 480, 0.0);
+        let padded_output = resampler.process(&padded);
+        let expected = &padded_output[160..160 + output.len()];
+
+        for (frame, (&actual, &reference)) in output.iter().zip(expected).enumerate() {
+            assert!(
+                (actual - reference).abs() < 1e-6,
+                "zero-extension mismatch at frame {frame}: {actual} vs {reference}"
+            );
+        }
     }
 }
