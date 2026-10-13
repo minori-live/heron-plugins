@@ -3,6 +3,7 @@ import { appendFile, cp, mkdir, readFile, readdir, rm, stat, writeFile } from "n
 import { dirname, join } from "node:path"
 import { hostPlatform, type Platform } from "./catalog.ts"
 import { run, target } from "./process.ts"
+import { assertNoExternalMsvcRuntime, windowsBuildTools } from "./windows-runtime.ts"
 
 const version = "1.31.0"
 const sourceCommit = "402979ac1bef89dcd55add41eaa7277c407599eb"
@@ -61,51 +62,6 @@ function macDependencies(binary: string) {
     .filter((line) => /^\s/.test(line))
     .map((line) => line.trim().split(" (")[0]!)
     .filter((dependency) => dependency !== "@rpath/libonnxruntime.dylib")
-}
-
-async function windowsBuildTools() {
-  const vswhere = join(
-    process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)",
-    "Microsoft Visual Studio/Installer/vswhere.exe"
-  )
-  const installations = JSON.parse(
-    run(
-      vswhere,
-      [
-        "-latest",
-        "-products",
-        "*",
-        "-requires",
-        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-        "-format",
-        "json"
-      ],
-      { capture: true }
-    )
-  ) as { installationPath: string; installationVersion: string }[]
-  const installation = installations[0]
-  if (!installation) throw new Error("Visual C++ build tools are required for the Windows runtime")
-  const major = Number(installation.installationVersion.split(".")[0])
-  const generator =
-    major === 17 ? "Visual Studio 17 2022" : major === 18 ? "Visual Studio 18 2026" : undefined
-  if (!generator) throw new Error(`Unsupported Visual Studio major version: ${major}`)
-  const toolVersion = (
-    await readFile(
-      join(
-        installation.installationPath,
-        "VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt"
-      ),
-      "utf8"
-    )
-  ).trim()
-  if (!/^\d+(?:\.\d+)+$/.test(toolVersion)) throw new Error("Invalid Visual C++ tools version")
-  const dumpbin = join(
-    installation.installationPath,
-    "VC/Tools/MSVC",
-    toolVersion,
-    "bin/Hostx64/x64/dumpbin.exe"
-  )
-  return { generator, dumpbin }
 }
 
 async function downloadedRuntime(platform: keyof typeof archives) {
@@ -277,13 +233,10 @@ async function sourceRuntime(platform: "windows-x64" | "macos-x64") {
       dereference: true
     }
   )
-  if (windows) {
-    const dependencies = run(windowsTools!.dumpbin, ["/DEPENDENTS", library], { capture: true })
-    if (/(?:MSVCP|VCRUNTIME|CONCRT)\d[^\s]*\.dll/i.test(dependencies))
-      throw new Error("ONNX Runtime still requires an unbundled Visual C++ runtime")
-  }
-  for (const name of ["LICENSE", "ThirdPartyNotices.txt", "Privacy.md"])
+  if (windows) await assertNoExternalMsvcRuntime(library)
+  for (const name of ["LICENSE", "ThirdPartyNotices.txt"])
     await cp(join(source, name), join(output, "notices", name))
+  await cp(join(source, "docs/Privacy.md"), join(output, "notices/Privacy.md"))
   await writeFile(
     join(output, "runtime-source.json"),
     `${JSON.stringify(

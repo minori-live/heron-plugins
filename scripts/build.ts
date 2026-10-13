@@ -17,6 +17,7 @@ import { readVersion } from "./version.ts"
 import { validateBundles } from "./validate.ts"
 import { aaxEnabled, prepareAax, signAax, validateAax } from "./aax.ts"
 import { createMacDmg } from "./dmg.ts"
+import { windowsStaticRuntimeEnvironment } from "./windows-runtime.ts"
 
 if (import.meta.main) {
   const args = process.argv.slice(2)
@@ -61,7 +62,8 @@ if (import.meta.main) {
   const revoxRuntime = await prepareRevoxRuntime(platform)
   const env: NodeJS.ProcessEnv = {
     CARGO_INCREMENTAL: "0",
-    MACOSX_DEPLOYMENT_TARGET: "14.2"
+    MACOSX_DEPLOYMENT_TARGET: "14.2",
+    ...(platform === "windows-x64" ? windowsStaticRuntimeEnvironment() : {})
   }
   if (platform === "macos-universal") {
     run("rustup", ["target", "add", "aarch64-apple-darwin", "x86_64-apple-darwin"])

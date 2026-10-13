@@ -4,6 +4,7 @@ import { bundleName, plugins, revox, type Format, type Platform } from "./catalo
 import { root, run, target } from "./process.ts"
 import { auVersion } from "./version.ts"
 import { waitForAuRegistration, withInstalledAuBundles } from "./au-registration.ts"
+import { assertNoExternalMsvcRuntime } from "./windows-runtime.ts"
 
 // Installed bundles must ignore a DAW's unrelated ORT override and use their
 // own runtime and embedded graphs, with no build-time library search paths.
@@ -131,6 +132,11 @@ export async function validateBundles(
             })
       }
     } else {
+      if (platform === "windows-x64") {
+        await assertNoExternalMsvcRuntime(binary)
+        if (plugin.builtinId === revox.builtinId)
+          await assertNoExternalMsvcRuntime(join(bundle, "Contents/x86_64-win/onnxruntime.dll"))
+      }
       run(probe, [binary, plugin.nativeId])
       if (plugin.builtinId === revox.builtinId)
         run(revoxProbe, [binary], {
