@@ -9,6 +9,19 @@ repository.workspace = true
 [dependencies]
 serde.workspace = true
 rustfft.workspace = true
+fearless_simd.workspace = true
+fearless_simd_macros.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "eq_processing"
+harness = false
+
+[[bench]]
+name = "eq_kernels"
+harness = false
 
 [lints]
 workspace = true

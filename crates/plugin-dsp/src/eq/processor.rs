@@ -2,8 +2,10 @@ use super::{
     EqBand, EqChannel, EqConfig, EqError, EqResponseMatrix, MAX_EQ_BANDS, ProcessingMode,
     coefficients::{BandDesign, FilterState, MAX_SECTIONS, design},
     convolution::LinearConvolver,
-    response::{OVERSAMPLE_TAPS, oversampling_kernel},
+    oversampling::OversamplingFir,
 };
+use fearless_simd::{Level, Simd, dispatch};
+use fearless_simd_macros::simd;
 
 #[derive(Clone, Copy)]
 struct BandProcessor {
@@ -69,36 +71,6 @@ impl BandProcessor {
     }
 }
 
-#[derive(Clone, Copy)]
-struct OversamplingFir {
-    kernel: [f64; OVERSAMPLE_TAPS],
-    history: [[f64; OVERSAMPLE_TAPS]; 2],
-    cursor: usize,
-}
-impl OversamplingFir {
-    fn new() -> Self {
-        Self {
-            kernel: oversampling_kernel(),
-            history: [[0.0; OVERSAMPLE_TAPS]; 2],
-            cursor: 0,
-        }
-    }
-    fn process(&mut self, input: (f64, f64)) -> (f64, f64) {
-        self.history[0][self.cursor] = input.0;
-        self.history[1][self.cursor] = input.1;
-        let mut result = [0.0; 2];
-        for (channel, value) in result.iter_mut().enumerate() {
-            for index in 0..OVERSAMPLE_TAPS {
-                *value += self.kernel[index]
-                    * self.history[channel]
-                        [(self.cursor + OVERSAMPLE_TAPS - index) % OVERSAMPLE_TAPS];
-            }
-        }
-        self.cursor = (self.cursor + 1) % OVERSAMPLE_TAPS;
-        (result[0], result[1])
-    }
-}
-
 /// Prepared stereo EQ. Construction and destruction belong on a control thread.
 /// Every processing method, including coefficient transitions, is allocation-free.
 pub struct EqProcessor {
@@ -122,6 +94,7 @@ pub struct EqProcessor {
     convolution: Option<LinearConvolver>,
     dry_delay: Vec<(f64, f64)>,
     dry_cursor: usize,
+    simd_level: Level,
 }
 
 impl EqProcessor {
@@ -175,6 +148,7 @@ impl EqProcessor {
             },
             dry_delay: vec![(0.0, 0.0); latency],
             dry_cursor: 0,
+            simd_level: Level::new(),
         })
     }
 
@@ -248,15 +222,8 @@ impl EqProcessor {
         let dry = self.delayed_dry(input);
         let mut output = match self.config.processing_mode {
             ProcessingMode::ZeroLatency => self.process_bands(input),
-            ProcessingMode::NaturalPhase => {
-                let up = self.upsample.process((input.0 * 2.0, input.1 * 2.0));
-                let first = self.process_bands(up);
-                let result = self.downsample.process((first.0 - up.0, first.1 - up.1));
-                let up = self.upsample.process((0.0, 0.0));
-                let second = self.process_bands(up);
-                self.downsample.process((second.0 - up.0, second.1 - up.1));
-                (dry.0 + result.0, dry.1 + result.1)
-            }
+            ProcessingMode::NaturalPhase => dispatch!(self.simd_level,
+                simd => self.process_natural(simd, input, dry)),
             ProcessingMode::LinearPhase => self
                 .convolution
                 .as_mut()
@@ -273,6 +240,27 @@ impl EqProcessor {
         output.0 = dry.0 + (output.0 * gain - dry.0) * self.wet;
         output.1 = dry.1 + (output.1 * gain - dry.1) * self.wet;
         (finite_output(output.0), finite_output(output.1))
+    }
+
+    // Reuse one prepared SIMD token for all four short FIR calls in this frame.
+    // The serial IIR, zero-stuffing and downsampling order remain unchanged.
+    #[simd]
+    fn process_natural<S: Simd>(
+        &mut self,
+        simd: S,
+        input: (f64, f64),
+        dry: (f64, f64),
+    ) -> (f64, f64) {
+        let up = self.upsample.process(simd, (input.0 * 2.0, input.1 * 2.0));
+        let first = self.process_bands(up);
+        let result = self
+            .downsample
+            .process(simd, (first.0 - up.0, first.1 - up.1));
+        let up = self.upsample.process(simd, (0.0, 0.0));
+        let second = self.process_bands(up);
+        self.downsample
+            .process(simd, (second.0 - up.0, second.1 - up.1));
+        (dry.0 + result.0, dry.1 + result.1)
     }
 
     /// Measured-display transfer for the actual prepared FIR, including its

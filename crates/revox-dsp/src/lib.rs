@@ -5,6 +5,7 @@
 
 pub mod fcpe_features;
 pub mod features;
+pub mod fir;
 pub mod noise;
 mod pipeline;
 mod pitch;

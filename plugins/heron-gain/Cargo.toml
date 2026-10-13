@@ -23,9 +23,16 @@ truce-vst3 = { workspace = true, optional = true }
 truce-au = { workspace = true, optional = true }
 truce-aax = { workspace = true, optional = true }
 heron-plugin-ui.workspace = true
+fearless_simd.workspace = true
+fearless_simd_macros.workspace = true
 
 [dev-dependencies]
 truce-test.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "gain"
+harness = false
 
 [lints]
 workspace = true

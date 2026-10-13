@@ -6,7 +6,9 @@ use truce::prelude::*;
 use truce_iced::IcedEditor;
 
 mod editor;
+mod processor;
 pub use editor::{GainMessage, GainUi};
+pub use processor::GainDspState;
 
 use GainParamsParamId as P;
 
@@ -26,11 +28,16 @@ pub struct GainParams {
     pub meter_right: MeterSlot,
 }
 
-/// Stateless gain processor.
+/// Gain processor with bounded scratch for a shared stereo gain envelope.
 pub struct HeronGain;
 
-impl PurePluginLogic for HeronGain {
+impl PluginLogic for HeronGain {
     type Params = GainParams;
+    type DspState = GainDspState;
+
+    fn reset(state: &mut GainDspState, _params: &GainParams, _config: &AudioConfig) {
+        *state = GainDspState::default();
+    }
 
     fn bus_layouts() -> Vec<BusLayout> {
         vec![
@@ -43,31 +50,18 @@ impl PurePluginLogic for HeronGain {
     }
 
     fn process(
+        state: &mut Self::DspState,
         params: &Self::Params,
         buffer: &mut AudioBuffer,
         _events: &EventList,
         context: &mut ProcessContext,
     ) -> ProcessStatus {
-        for sample_index in 0..buffer.num_samples() {
-            let gain_db = params.gain.read();
-            let gain = if gain_db <= -90.0 {
-                0.0
-            } else if gain_db.abs() <= f32::EPSILON {
-                1.0
-            } else {
-                db_to_linear(gain_db)
-            };
-            for output_channel in 0..buffer.num_output_channels() {
-                let input_channel = output_channel.min(buffer.num_input_channels() - 1);
-                let input = buffer.input(input_channel)[sample_index];
-                buffer.output(output_channel)[sample_index] = input * gain;
-            }
-        }
+        let peaks = state.process(params, buffer);
         if buffer.num_output_channels() > 0 {
-            context.set_meter(P::MeterLeft, buffer.output_peak(0));
+            context.set_meter(P::MeterLeft, peaks[0]);
         }
         if buffer.num_output_channels() > 1 {
-            context.set_meter(P::MeterRight, buffer.output_peak(1));
+            context.set_meter(P::MeterRight, peaks[1]);
         }
         ProcessStatus::Normal
     }
@@ -94,7 +88,7 @@ mod tests {
 
     #[test]
     fn exposes_mono_mono_to_stereo_and_stereo_layouts() {
-        let layouts = <HeronGain as PurePluginLogic>::bus_layouts()
+        let layouts = <HeronGain as PluginLogic>::bus_layouts()
             .into_iter()
             .map(|layout| {
                 (

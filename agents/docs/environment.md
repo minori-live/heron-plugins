@@ -197,6 +197,31 @@ documentation directories. Source-size thresholds in
 [Engineering standards](engineering-standards.md) are review requirements;
 this repository currently has no automatic source-size check command.
 
+## DSP performance
+
+For repeatable DSP performance comparisons, run the Criterion benchmarks with
+the release profile on an otherwise idle machine:
+
+```sh
+cargo bench --locked -p heron-gain --bench gain
+cargo bench --locked -p heron-plugin-dsp --bench eq_kernels
+cargo bench --locked -p heron-plugin-dsp --bench eq_processing
+cargo bench --locked -p heron-revox-dsp --bench resample
+cargo bench --locked -p heron-revox --bench resampling
+```
+
+Gain compares the original per-sample path with steady and smoothed block
+processing. The Revox benchmarks separate the original tap loops, contiguous
+scalar loops, SIMD, and return-window cropping at real 2.12-second window sizes.
+They exclude inference, so their speedups describe resampling work rather than
+model or end-to-end plugin throughput. The EQ benchmark uses its public processor
+API and can run unchanged against a baseline checkout with the same harness.
+Preparation is outside EQ timing. Keep host rate, channel count, compiler,
+profile and machine fixed when comparing revisions; do not run benchmarks
+alongside compilation or other benchmarks. Retain Criterion output under
+`target/criterion/`, not in documentation or Git. Hardware-specific results do
+not establish speedups on other architectures or lower the reported latency.
+
 ## Revox DSP experiment
 
 The Revox crate can be exercised without building a plug-in or opening a DAW.

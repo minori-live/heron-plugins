@@ -140,6 +140,13 @@ convolution. Its five resolutions use 513, 1025, 2049, 4097 or 8193 taps; latenc
 is half the tap count plus the convolution partition. The Brickwall setting is
 a finite FIR approximation, and the editor must display that actual transition.
 
+The Natural Phase FIR uses mirrored fixed-capacity histories to make each tap
+window contiguous and evaluates its stereo dot products with f64 SIMD. Its SIMD
+level is cached during preparation; all processing storage is prepared in
+advance. Linear Phase retains its existing complex multiply-accumulate loop and
+RustFFT plans. The Natural Phase optimization retains the existing tap count,
+precision, filter state, transfer response and latency contracts.
+
 Preparing a new FIR leaves the current processor running. The callback warms
 the new processor before a 10 ms crossfade and transfers the old owner to a
 bounded retirement slot. Equal-latency edits are aligned; a mode change blends

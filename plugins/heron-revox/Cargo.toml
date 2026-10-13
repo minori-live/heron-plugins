@@ -25,12 +25,19 @@ truce-aax = { workspace = true, optional = true }
 heron-plugin-ui.workspace = true
 heron-revox-dsp.workspace = true
 crossbeam-queue.workspace = true
+fearless_simd.workspace = true
+fearless_simd_macros.workspace = true
 
 [build-dependencies]
 sha2 = "0.10.9"
 
 [dev-dependencies]
 truce-test.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "resampling"
+harness = false
 
 [lints]
 workspace = true
