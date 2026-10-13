@@ -1,6 +1,6 @@
 # Artifact contract
 
-One suite version identifies all four plug-ins. The public producer repository
+One suite version identifies all five plug-ins. The public producer repository
 is `minori-live/heron-plugins`; a published release tag is `v<VERSION>`. Published
 assets are immutable. A release has five runtime ZIP files and one macOS DMG
 while AAX is disabled. The publisher requires this exact asset set and creates GitHub artifact
@@ -35,13 +35,35 @@ executable modes and relative symlinks and rejects links escaping the root.
 }
 ```
 
-The actual manifest lists all four catalog entries. VST3 native IDs use Heron's
+The actual VST3/AUv2 manifest lists all five catalog entries, including Revox's
+unchanged `801E1EF7D1FBA46DD7EE039C0317622C` VST3 and `aufx:HRRV:HRON` AU identities.
+VST3 native IDs use Heron's
 GUID display order; the binary probe checks the exported COM-layout bytes after
 the same field-order conversion. AU IDs use `type:subtype:manufacturer`; EQ's
 MIDI input requires `aumf:HREQ:HRON`. AAX IDs
 use eight-hex-digit `manufacturer:product:native-layout-ids`, with multiple
 registered layout IDs separated by commas; the catalog records the pinned
 Truce 6.3 wrapper's actual mono/stereo registration.
+
+Revox embeds its checksum-pinned FCPE and vocoder graphs in the executable.
+Each Revox bundle also contains ONNX Runtime 1.31.0: `Contents/Frameworks/libonnxruntime.dylib`
+on macOS, `Contents/x86_64-win/onnxruntime.dll` on Windows, and
+`Contents/<architecture>-linux/libonnxruntime.so` on Linux (`x86_64` or `aarch64`).
+The installed loader resolves these paths from its own native module. It does not
+use a developer cache, the current directory or `ORT_DYLIB_PATH`. CPU inference
+is available on every release target; macOS may use CoreML when supplied by the
+runtime, with CPU fallback. CUDA, TensorRT and WebGPU are not release dependencies.
+The macOS runtime contains both slices: official arm64 bytes and an Intel CPU
+build of the exact upstream release commit. Windows builds that same pinned
+CPU runtime with a static MSVC runtime and rejects dynamic MSVC runtime imports,
+so the plug-in does not require a separately installed Visual C++ redistributable.
+Runtime source/build provenance,
+model provenance, FCPE's MIT license and the selected GPL-3.0-only Revox model
+license evidence accompany the bundle under `Contents/Resources/licenses/`.
+Validation of the extracted archive must render shifted audio; merely loading
+the factory or compiling the binary does not prove runtime/model completeness.
+AAX stays disabled and a complete-suite manifest fails until Revox's AAX identity
+and native behavior have release evidence.
 
 Heron locks the four VST3 runtimes, recording the suite version, full source
 commit and four asset filenames. The consumer resolves the tag's commit and

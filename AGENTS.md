@@ -1,7 +1,8 @@
 # Agent Guide
 
-Heron Plugins owns Heron Gain, Heron EQ, Heron Sine, Heron Metronome and their shared Rust
-UI. Heron Revox is a separate development plug-in with embedded FCPE/Revox models.
+Heron Plugins owns Heron Gain, Heron EQ, Heron Sine, Heron Metronome, Heron Revox
+and their shared Rust UI. Revox releases include embedded FCPE/Revox models and
+a bundle-local ONNX Runtime; inference must work from the extracted release archive.
 Prepare its pinned models before workspace Cargo checks; see the environment guide.
 Heron consumes released VST3 artifacts; this repository also publishes AUv2
 components for macOS. AAX is opt-in and requires the licensed SDK and PACE release
@@ -46,6 +47,7 @@ cargo test --locked -p heron-gain --features rt-paranoid
 cargo test --locked -p heron-eq --features rt-paranoid
 cargo test --locked -p heron-sine --features rt-paranoid
 cargo test --locked -p heron-metronome --features rt-paranoid
+cargo test --locked -p heron-revox --features rt-paranoid
 ```
 
 Tests must prove plugin-owned behavior: DSP output, MIDI/sample timing, resource

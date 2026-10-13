@@ -10,7 +10,8 @@ import {
   type Format
 } from "./catalog.ts"
 import { root, run, sourceCommit, target } from "./process.ts"
-import { stageLicenses } from "./licenses.ts"
+import { stageLicenses, stageRevoxModelNotices } from "./licenses.ts"
+import { prepareRevoxRuntime, stageRevoxRuntime } from "./revox-runtime.ts"
 import { notarize, signMacBundle, stampVersion } from "./sign.ts"
 import { readVersion } from "./version.ts"
 import { validateBundles } from "./validate.ts"
@@ -55,6 +56,9 @@ if (import.meta.main) {
     if (platform.startsWith("linux")) throw new Error("AAX is unsupported on Linux")
     if (!formats.includes("aax")) formats.push("aax")
   }
+  // A release format must include the whole suite, including Revox.
+  for (const format of formats) manifestPlugins(format)
+  const revoxRuntime = await prepareRevoxRuntime(platform)
   const env: NodeJS.ProcessEnv = {
     CARGO_INCREMENTAL: "0",
     MACOSX_DEPLOYMENT_TARGET: "14.2"
@@ -115,6 +119,10 @@ if (import.meta.main) {
       await cp(source, bundle, { recursive: true, verbatimSymlinks: true })
       await stampVersion(bundle, version, format)
       await stageLicenses(bundle, version, commit)
+      if (plugin.slug === "revox") {
+        await stageRevoxModelNotices(bundle)
+        await stageRevoxRuntime(bundle, platform, revoxRuntime)
+      }
       if (platform === "macos-universal") await signMacBundle(bundle, release)
     }
     await writeFile(

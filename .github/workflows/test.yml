@@ -19,40 +19,9 @@ env:
   MACOSX_DEPLOYMENT_TARGET: "14.2"
 jobs:
   revox-models:
-    name: Prepare pinned Revox models
-    runs-on: macos-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: jdx/mise-action@v5.1.1
-        with:
-          version: 2026.10.6
-          install_args: node
-      - name: Export FCPE and acquire Revox once for all native checks
-        run: |
-          mise install uv@0.11.1
-          mise exec uv@0.11.1 -- uv venv --python 3.12.13 target/revox/venv
-          mise exec uv@0.11.1 -- uv pip install --python target/revox/venv/bin/python --require-hashes -r scripts/revox/requirements.lock
-          target/revox/venv/bin/python scripts/revox/export_fcpe.py
-          node scripts/fetch-revox-model.ts
-          target/revox/venv/bin/python scripts/revox/prepare_vocoder.py
-      - uses: actions/upload-artifact@v7
-        with:
-          name: revox-models
-          path: |
-            target/revox/fcpe.onnx
-            target/revox/fcpe-export.json
-            target/revox/fcpe-plugin.onnx
-            target/revox/fcpe-plugin-export.json
-            target/revox/fcpe-upstream/LICENSE
-            target/revox/models/
-          if-no-files-found: error
-          retention-days: 1
+    uses: ./.github/workflows/revox-models.yml
+    with:
+      artifact_name: revox-test-models
   checks:
     needs: revox-models
     name: Checks (${{ matrix.name }})
@@ -91,8 +60,16 @@ jobs:
       - name: Restore build-verified inference models
         uses: actions/download-artifact@v8
         with:
-          name: revox-models
+          name: revox-test-models
           path: target/revox
+      - name: Prepare pinned Python for Windows ONNX Runtime source build
+        if: runner.os == 'Windows'
+        run: |
+          mise install uv@0.11.1
+          mise exec uv@0.11.1 -- uv venv --python 3.12.13 target/revox/runtime-venv
+          cygpath -w "$PWD/target/revox/runtime-venv/Scripts" >> "$GITHUB_PATH"
+      - name: Prepare pinned CPU runtime for test executables
+        run: node scripts/revox-runtime.ts
       - name: Lint Rust
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test Rust with coverage

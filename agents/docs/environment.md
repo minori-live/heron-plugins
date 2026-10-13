@@ -2,7 +2,7 @@
 
 This document adapts Heron's runtime and execution conventions to the plug-in
 producer. It describes the tools and commands actually configured in this
-repository. The Rust workspace contains four plug-ins, shared Iced/Truce UI and
+repository. The Rust workspace contains five plug-ins, shared Iced/Truce UI and
 reusable plug-in DSP; the Node package owns TypeScript build and release tools.
 
 Adapted on 2026-10-10 from Heron's
@@ -81,7 +81,7 @@ mise run ci:coverage
 
 `mise run check` is the full local validation path: suite version consistency,
 Oxfmt, Oxlint, strict TypeScript and script tests, Rust fmt, cargo-shear,
-all-target workspace Clippy, workspace tests and four separate plug-in
+all-target workspace Clippy, workspace tests and five separate plug-in
 `rt-paranoid` test runs. `mise run check-fast` runs Rust formatting, all-target
 Clippy and workspace tests; it omits JavaScript and the separate paranoid runs.
 CI runs source checks once on Linux and uses coverage for each platform's Rust
@@ -157,7 +157,7 @@ sources. Keep Truce's pinned wrappers and paired Windows scale/focus patches
 consistent when upgrading them.
 
 `scripts/catalog.ts` owns producer bundle names and manifest identities for
-Gain, EQ, Sine and Metronome. Default plug-in features build VST3. A macOS
+Gain, EQ, Sine, Metronome and Revox. Default plug-in features build VST3. A macOS
 producer build packages VST3 and AUv2 for both architectures, plus a DMG;
 Windows x64 and Linux x64/arm64 package VST3. AAX is explicitly disabled in
 `release-config.json` and requires the separate licensed prerequisites in
@@ -170,7 +170,7 @@ staging and final-archive checks. Each run clears the release asset output.
 macOS development bundles use ad-hoc signing; tag releases keep thin LTO, require
 a clean committed source tree and use Developer ID signing/notarization.
 
-AU validation temporarily installs all four complete components under the
+AU validation temporarily installs all five complete components under the
 current user's `Library/Audio/Plug-Ins/Components`, restores existing bundles
 afterward and verifies both architectures with simultaneous instances and
 `auval`. Use a controlled local validation session; the script preserves prior
@@ -265,9 +265,10 @@ cargo clippy --locked -p heron-revox-dsp --all-targets -- -D warnings
 
 After model acquisition, run actual-model evidence and the performance probe:
 
-On macOS, first set `export MACOSX_DEPLOYMENT_TARGET=14.2`, matching the suite's
-release deployment target. The Revox build script locates and links Apple's
-compiler runtime required by the bundled CoreML objects.
+Prepare the host ONNX Runtime with `node scripts/revox-runtime.ts` and export the
+printed `ORT_DYLIB_PATH` for standalone Rust tests and examples. On macOS, also
+set `MACOSX_DEPLOYMENT_TARGET=14.2`, matching the release deployment target.
+Installed plug-in bundles ignore this development override and load their own runtime.
 
 ```sh
 cargo test --release --locked -p heron-revox-dsp --test model_pipeline -- --ignored
@@ -293,34 +294,19 @@ and model warm-up affect these numbers. Windowed output differed from the whole
 output by 1.35 times its RMS, so these timings do not establish seamless streaming.
 The generated report and WAVs are under ignored `target/revox/probe-default-ep/`.
 
-Default EPs use the largest compatible rc.14 prebuilt archive for each target:
+Release runtimes use CPU on Windows x64 and Linux x64/arm64. macOS attempts
+CoreML when available, then CPU; unavailable providers leave diagnostics and
+CPU remains available. The `registered` array records session registration,
+not measured operator placement. GPU driver installations are not prerequisites.
 
-| Target              | Registration priority, ending in CPU        |
-| ------------------- | ------------------------------------------- |
-| Apple Silicon macOS | CoreML, WebGPU, CPU                         |
-| Windows x64         | TensorRT RTX, TensorRT, CUDA, DirectML, CPU |
-| Windows arm64       | DirectML, CPU                               |
-| Linux x64/arm64     | TensorRT RTX, TensorRT, CUDA, CPU           |
-
-Session creation attempts every entry; unavailable providers leave diagnostics and
-later providers still register. CPU is the final fallback, with no backend mode
-selector. The report's `registered` array records session registration rather than measured
-operator placement. The `fallback` array records individual registration errors
-or a failed graph initialization with its complete attempted chain.
-
-Prebuilt does not mean driver-free: ORT's current CUDA binaries require CUDA
-13.2 or later and cuDNN 9.23 or later; TensorRT variants also need their matching
-runtime libraries. The `copy-dylibs` feature supplies ORT's distributed helper
-libraries for development. WebGPU uses Dawn and remains experimental upstream.
-Native execution was tested on Apple Silicon; Windows/Linux GPU paths still need
-validation on their respective hardware.
-
-The [pinned prebuilt matrix](https://github.com/pykeio/ort/blob/1ee1f842e8a381153ede7a506f01734e545854e0/ort-sys/build/download/dist.tsv)
-offers Windows/Linux WebGPU, OpenVINO, and Linux x64 MIGraphX as separate archives,
-not extensions that can be merged into the default NVIDIA archive. Enabling all
-those Cargo features together fails distribution resolution. Intel macOS has no
-rc.14 prebuilt; it needs a compatible externally supplied ORT build
-(`ORT_LIB_PATH`). Revox has a separate development package as described below.
+`scripts/revox-runtime.ts` pins official ONNX Runtime 1.31.0 archives for Linux
+and Apple Silicon and checks their SHA-256 values. Windows and Intel macOS build
+the CPU runtime from upstream commit `402979ac1bef89dcd55add41eaa7277c407599eb`
+using Python 3.12 and CMake 3.28 or newer. Windows uses static MSVC CRT linkage;
+universal macOS combines its Intel library with the official arm64 library.
+Source builds can take longer than plug-in compilation. Their dependencies and
+notices are tracked by the upstream release. The old static ORT/WebGPU build is
+no longer part of the release pipeline.
 
 ### Heron Revox plug-in
 
@@ -338,16 +324,18 @@ cargo test --release --locked -p heron-revox render_editor_evidence -- --ignored
 pnpm build:revox --au
 ```
 
-`build:revox` builds a separate Apple Silicon VST3, optionally AUv2 with `--au`,
-with embedded models, a bundle-local WebGPU Dawn library, licenses and model
-provenance. It verifies the extracted bundle, native identities and actual VST3
-audio: a four-second 220 Hz harmonic signal with +3 semitones and +50 cents must
-produce the combined shift, finite samples and the reported leading latency.
-AU builds also pass registration/version checks and `auval`. This is an
-ad-hoc-signed development package, separate from the existing universal suite
-release; Intel macOS is not supported by the pinned ORT prebuilts. The standard
-suite build continues to package its four existing plug-ins. Windows/Linux Rust
-paths remain configured but have no Revox native-package validation claim.
+`build:revox` builds a focused Apple Silicon VST3, optionally AUv2 with `--au`,
+using the same runtime staging and licenses as the formal suite. The complete
+`mise run build` path includes Revox on all release targets. Both models are
+embedded, while the bundle-local ONNX Runtime is loaded relative to the native
+module. A standalone installation needs neither the source checkout nor Python.
+
+After extraction, the native VST3 probe renders a four-second 220 Hz harmonic
+signal with +3 semitones and +50 cents and requires the combined shift, finite
+samples and reported leading latency. macOS checks both slices and forced CPU
+fallback. AU builds also pass registration/version checks and `auval` alongside
+the other four components. These gates establish native inference behavior for
+each produced archive; compilation alone is insufficient.
 
 The editor has two controls: Semitones (-12..12, step 1) and Cents (-100..100,
 step 1), combined additively. Both default to zero and still resynthesize audio.

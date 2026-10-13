@@ -14,7 +14,8 @@ test("VST3 suite identities preserve saved Heron projects", () => {
       ["live.minori.heron.gain", "46774F504DF84B4AC1F308AB88DD3677"],
       ["live.minori.heron.eq", "8A8341D5CA36B6C9A9572788F40EBB9F"],
       ["live.minori.heron.sine", "C1351DFA4DDD4B4AC1F30896F6D9DF76"],
-      ["live.minori.heron.metronome", "8CD16A11027ACC7FDF0C1419E86D1024"]
+      ["live.minori.heron.metronome", "8CD16A11027ACC7FDF0C1419E86D1024"],
+      ["live.minori.heron.revox", "801E1EF7D1FBA46DD7EE039C0317622C"]
     ]
   )
   assert.equal(
@@ -27,17 +28,19 @@ test("VST3 suite identities preserve saved Heron projects", () => {
       ["live.minori.heron.gain", "aufx:HRGN:HRON"],
       ["live.minori.heron.eq", "aumf:HREQ:HRON"],
       ["live.minori.heron.sine", "aumu:HRSN:HRON"],
-      ["live.minori.heron.metronome", "aumu:HRMT:HRON"]
+      ["live.minori.heron.metronome", "aumu:HRMT:HRON"],
+      ["live.minori.heron.revox", "aufx:HRRV:HRON"]
     ]
   )
 })
 
-test("Revox owns a separate stable identity without changing the released suite", () => {
+test("Revox preserves its development identity in the released suite", () => {
   assert.equal(revox.builtinId, "live.minori.heron.revox")
   assert.equal(revox.nativeId, "801E1EF7D1FBA46DD7EE039C0317622C")
   assert.equal(`${revox.auType}:${revox.fourcc}:HRON`, "aufx:HRRV:HRON")
   assert.equal(bundleName(revox, "vst3"), "Heron Revox.vst3")
   assert.equal(bundleName(revox, "au2"), "Heron Revox.component")
+  assert.throws(() => manifestPlugins("aax"), /complete release suite/)
 })
 
 test("AU component version changes with the suite version and rejects overflow", () => {

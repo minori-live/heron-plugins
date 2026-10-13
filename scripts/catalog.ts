@@ -2,6 +2,18 @@ export const platforms = ["macos-universal", "windows-x64", "linux-x64", "linux-
 export type Platform = (typeof platforms)[number]
 export type Format = "vst3" | "au2" | "aax"
 
+export const revox = {
+  builtinId: "live.minori.heron.revox",
+  name: "Heron Revox",
+  kind: "effect",
+  auType: "aufx",
+  crate: "heron-revox",
+  slug: "revox",
+  nativeId: "801E1EF7D1FBA46DD7EE039C0317622C",
+  fourcc: "HRRV",
+  aaxIds: null
+} as const
+
 export const plugins = [
   {
     builtinId: "live.minori.heron.gain",
@@ -46,22 +58,11 @@ export const plugins = [
     nativeId: "8CD16A11027ACC7FDF0C1419E86D1024",
     fourcc: "HRMT",
     aaxIds: "48524F4E:48524D54:49534C57"
-  }
+  },
+  revox
 ] as const
-// Revox has a separate Apple Silicon development bundle while the existing
-// release suite keeps its universal macOS and cross-platform artifact contract.
-export const revox = {
-  builtinId: "live.minori.heron.revox",
-  name: "Heron Revox",
-  kind: "effect",
-  auType: "aufx",
-  crate: "heron-revox",
-  slug: "revox",
-  nativeId: "801E1EF7D1FBA46DD7EE039C0317622C",
-  fourcc: "HRRV"
-} as const
 
-export type Plugin = (typeof plugins)[number] | typeof revox
+export type Plugin = (typeof plugins)[number]
 
 export function hostPlatform(): Platform {
   if (process.platform === "darwin") return "macos-universal"
@@ -76,6 +77,8 @@ export function bundleName(plugin: Plugin, format: Format): string {
 }
 
 export function manifestPlugins(format: Format) {
+  if (format === "aax" && plugins.some((plugin) => !plugin.aaxIds))
+    throw new Error("The complete release suite does not support AAX")
   return plugins.map((plugin) => ({
     builtinId: plugin.builtinId,
     name: plugin.name,
