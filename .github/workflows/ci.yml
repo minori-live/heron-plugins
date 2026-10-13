@@ -1,25 +1,48 @@
 name: CI
+
 on:
-  push:
-    branches: [main]
   pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Test
     uses: ./.github/workflows/test.yml
-    secrets: inherit
+    permissions:
+      contents: read
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
   build:
+    name: Build
     uses: ./.github/workflows/build.yml
-    secrets: inherit
+    permissions:
+      contents: read
+
   gate:
     name: Gate
+    if: ${{ always() }}
     needs: [test, build]
-    if: always()
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - name: Require tests and all published platform bundle builds
+      - name: Require successful CI jobs
+        shell: bash
         env:
           TEST_RESULT: ${{ needs.test.result }}
           BUILD_RESULT: ${{ needs.build.result }}
-        run: test "$TEST_RESULT" = success && test "$BUILD_RESULT" = success
+        run: |
+          if [[ "$TEST_RESULT" != "success" || "$BUILD_RESULT" != "success" ]]; then
+            echo "::error::Required CI jobs did not succeed (Test: $TEST_RESULT, Build: $BUILD_RESULT)."
+            exit 1
+          fi
