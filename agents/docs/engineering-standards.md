@@ -232,17 +232,15 @@ Changes to material interaction semantics need a documented decision.
 
 ## Decisions, documentation and exceptions
 
-Create an ADR before changing process/thread ownership, serialized persistence,
-native protocols, real-time assumptions, foundational dependencies,
-compatibility commitments or material interaction semantics. Keep durable
-decisions under [ADRs](adr/README.md); current behavior and validation status
-belong in their owning documents. Routine patches and reversible refactors
-within one owner do not require a separate ADR.
+Maintain current design and behavior in the existing owning documents and
+explain implementation choices and validation in the PR. Follow
+[ADR governance](adr/README.md) for maintainer-directed creation, acceptance,
+and amendments; a changed technical domain alone does not require a record.
+A policy exception MUST link to an issue. An issue link is sufficient at the
+current project scale; do not invent a parallel waiver bureaucracy.
 
-An exception identifies the file, rule and reason and links a tracked issue.
-It MUST NOT silently authorize similar code elsewhere or allow its scope to
-grow. Normal repository review is sufficient; do not add a separate waiver
-process.
+Exceptions are narrow: they identify the file, rule, and reason. They MUST NOT
+silently authorize similar code elsewhere or allow the affected scope to grow.
 
 Keep repository-wide instructions in `AGENTS.md` and architecture, development,
 testing, release and agent documentation under `agents/docs/`. README and

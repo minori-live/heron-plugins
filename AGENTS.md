@@ -72,9 +72,16 @@ Logic Pro is the default gesture and EQ workflow reference. Material deviations
 need a documented decision; stable parameter/state compatibility remains required.
 
 Keep repository-wide agent instructions here. Architecture, development, CI and
-ADRs belong under `agents/docs/`. Create an ADR for persistence, threading,
-real-time, foundational dependency or compatibility changes. This repository has
-no public website. Preserve upstream third-party licenses and record any pinned
+ADRs belong under `agents/docs/`. Maintain current design and behavior in the
+existing owning documents by default. Agents MUST NOT create an ADR or mark one
+Accepted without an explicit maintainer request for that action; authorization
+to implement a change does not imply either. Touching persistence, protocols,
+threads, real-time behavior, dependencies, compatibility, or interactions does
+not automatically require an ADR. Briefly mention a candidate durable decision
+in the work summary or PR and continue authorized work; do not interrupt solely
+to ask whether an ADR is needed. Work beyond the authorized scope still requires
+maintainer direction. See `agents/docs/adr/README.md`. This repository has no
+public website. Preserve upstream third-party licenses and record any pinned
 patches and their validation. Do not edit installed skills under `.agents/skills/`.
 
 ## Supporting notes
