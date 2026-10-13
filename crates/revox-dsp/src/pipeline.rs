@@ -1,6 +1,11 @@
 //! The allocating analysis/resynthesis path shared by DSP probes and plug-in workers.
 
-use std::{borrow::Cow, path::Path};
+use std::{
+    borrow::Cow,
+    io::Write,
+    path::Path,
+    time::{Duration, Instant},
+};
 
 use ort::{session::Session, value::TensorRef};
 use serde::Serialize;
@@ -85,6 +90,7 @@ pub struct RevoxDsp {
     backends: ModelBackends,
     channels: usize,
     fixed_window: bool,
+    diagnostic_sequence: Option<u64>,
 }
 
 impl RevoxDsp {
@@ -169,6 +175,10 @@ impl RevoxDsp {
             resampler: PitchResampler::new(),
             channels,
             fixed_window,
+            // Read once on the session-owning worker, never in the audio callback.
+            diagnostic_sequence: std::env::var("HERON_REVOX_DIAGNOSTICS")
+                .is_ok_and(|value| value == "1")
+                .then_some(0),
             backends: ModelBackends {
                 fcpe: fcpe_backend,
                 revox: revox_backend,
@@ -198,6 +208,14 @@ impl RevoxDsp {
     /// Rejects the wrong channel count, unequal/wrong fixed window lengths,
     /// invalid PCM, malformed model outputs, and inference failures.
     pub fn analyze_channels(&mut self, audio48k: &[&[f32]]) -> Result<Vec<Analysis>, DspError> {
+        self.analyze_channels_timed(audio48k, &mut None)
+    }
+
+    fn analyze_channels_timed(
+        &mut self,
+        audio48k: &[&[f32]],
+        timing: &mut Option<WindowTiming>,
+    ) -> Result<Vec<Analysis>, DspError> {
         validate_batch_shape(
             self.channels,
             self.fixed_window,
@@ -217,7 +235,10 @@ impl RevoxDsp {
         let values = concatenate(fcpe_mel.iter().map(|mel| mel.values.as_slice()));
         let input =
             TensorRef::from_array_view(([self.channels, frames, MEL_BINS], values.as_ref()))?;
-        let outputs = self.fcpe.run(ort::inputs!["mel" => input])?;
+        let inputs = ort::inputs!["mel" => input];
+        WindowTiming::start_stage(timing, TimingStage::FcpeOrt);
+        let outputs = self.fcpe.run(inputs)?;
+        WindowTiming::start_stage(timing, TimingStage::PitchDecode);
         let probabilities = output_tensor(
             &outputs,
             "FCPE",
@@ -271,6 +292,17 @@ impl RevoxDsp {
         semitones: f32,
         seed: u64,
     ) -> Result<Vec<Vec<f32>>, DspError> {
+        self.render_batch_timed(analysis, semitones, seed, &mut None)
+    }
+
+    fn render_batch_timed(
+        &mut self,
+        analysis: &[Analysis],
+        semitones: f32,
+        seed: u64,
+        timing: &mut Option<WindowTiming>,
+    ) -> Result<Vec<Vec<f32>>, DspError> {
+        WindowTiming::start_stage(timing, TimingStage::VocoderInputs);
         if !semitones.is_finite() || !(-13.0..=13.0).contains(&semitones) {
             return Err(DspError::PitchShift);
         }
@@ -301,13 +333,16 @@ impl RevoxDsp {
         let valid: Vec<_> = pitch.map(|frame| frame.pitch_valid).collect();
         let one_noise = seeded_noise(seed, frames * HOP_SIZE);
         let noise = concatenate((0..self.channels).map(|_| one_noise.as_slice()));
-        let outputs = self.revox.run(ort::inputs![
+        let inputs = ort::inputs![
             "mel" => TensorRef::from_array_view(([self.channels, MEL_BINS, frames], mel.as_ref()))?,
             "f0_hz" => TensorRef::from_array_view(([self.channels, frames], f0.as_slice()))?,
             "voiced" => TensorRef::from_array_view(([self.channels, frames], voiced.as_slice()))?,
             "pitch_valid" => TensorRef::from_array_view(([self.channels, frames], valid.as_slice()))?,
             "noise" => TensorRef::from_array_view(([self.channels, frames * HOP_SIZE], noise.as_ref()))?,
-        ])?;
+        ];
+        WindowTiming::start_stage(timing, TimingStage::VocoderOrt);
+        let outputs = self.revox.run(inputs)?;
+        WindowTiming::start_stage(timing, TimingStage::Synthesis);
         let shape = [self.channels as i64, SPECTRUM_BINS as i64, frames as i64];
         let real = output_tensor(&outputs, "Revox", "real", &shape)?;
         let imag = output_tensor(&outputs, "Revox", "imag", &shape)?;
@@ -333,9 +368,87 @@ impl RevoxDsp {
         semitones: f32,
         seed: u64,
     ) -> Result<Vec<Vec<f32>>, DspError> {
-        let inputs: Vec<_> = audio48k.iter().map(Vec::as_slice).collect();
-        let analysis = self.analyze_channels(&inputs)?;
-        self.render_batch(&analysis, semitones, seed)
+        let mut timing = self.diagnostic_sequence.as_mut().map(|sequence| {
+            let timing = WindowTiming::new(*sequence);
+            *sequence = sequence.saturating_add(1);
+            timing
+        });
+        let result = (|| {
+            let inputs: Vec<_> = audio48k.iter().map(Vec::as_slice).collect();
+            let analysis = self.analyze_channels_timed(&inputs, &mut timing)?;
+            self.render_batch_timed(&analysis, semitones, seed, &mut timing)
+        })();
+        if let Some(timing) = timing {
+            timing.report(self.channels, result.as_ref().err());
+        }
+        result
+    }
+}
+
+#[derive(Clone, Copy)]
+enum TimingStage {
+    Features,
+    FcpeOrt,
+    PitchDecode,
+    VocoderInputs,
+    VocoderOrt,
+    Synthesis,
+}
+
+// Temporary opt-in worker diagnostics. Each session starts at seq=0 (warmup);
+// timings exclude stderr reporting and preserve the original inference path.
+struct WindowTiming {
+    sequence: u64,
+    started: Instant,
+    stage_started: Instant,
+    stage: TimingStage,
+    durations: [Duration; 6],
+}
+
+impl WindowTiming {
+    fn new(sequence: u64) -> Self {
+        let started = Instant::now();
+        Self {
+            sequence,
+            started,
+            stage_started: started,
+            stage: TimingStage::Features,
+            durations: [Duration::ZERO; 6],
+        }
+    }
+
+    fn start_stage(timing: &mut Option<Self>, stage: TimingStage) {
+        if let Some(timing) = timing {
+            let now = Instant::now();
+            timing.durations[timing.stage as usize] += now - timing.stage_started;
+            timing.stage = stage;
+            timing.stage_started = now;
+        }
+    }
+
+    fn report(mut self, channels: usize, error: Option<&DspError>) {
+        let now = Instant::now();
+        self.durations[self.stage as usize] += now - self.stage_started;
+        let milliseconds = self
+            .durations
+            .map(|duration| duration.as_secs_f64() * 1000.0);
+        // Logging belongs to this non-real-time worker. A closed stderr must not
+        // turn an optional diagnostic into a processing failure or unwind.
+        let _ = writeln!(
+            std::io::stderr().lock(),
+            "[heron-revox-dsp] thread={:?} seq={} channels={} total_ms={:.3} features_ms={:.3} fcpe_ort_ms={:.3} pitch_decode_ms={:.3} vocoder_inputs_ms={:.3} vocoder_ort_ms={:.3} synthesis_ms={:.3} error={:?}",
+            std::thread::current().id(),
+            self.sequence,
+            channels,
+            (now - self.started).as_secs_f64() * 1000.0,
+            milliseconds[TimingStage::Features as usize],
+            milliseconds[TimingStage::FcpeOrt as usize],
+            milliseconds[TimingStage::PitchDecode as usize],
+            milliseconds[TimingStage::VocoderInputs as usize],
+            milliseconds[TimingStage::VocoderOrt as usize],
+            milliseconds[TimingStage::Synthesis as usize],
+            error,
+        );
     }
 }
 

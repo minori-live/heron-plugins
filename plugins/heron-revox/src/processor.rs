@@ -20,6 +20,7 @@ pub struct RevoxDspState {
     region_start: u64,
     input: Packet,
     output: Option<Packet>,
+    output_read_end: u64,
     dry: Vec<[f32; 2]>,
     latency: usize,
     mix: f32,
@@ -37,6 +38,7 @@ impl Default for RevoxDspState {
             region_start: 0,
             input: Packet::new(0, 0, 0.0),
             output: None,
+            output_read_end: 0,
             dry: Vec::new(),
             latency: 0,
             mix: 0.0,
@@ -55,6 +57,7 @@ impl RevoxDspState {
         self.region_start = 0;
         self.input = Packet::new(0, 0, 0.0);
         self.output = None;
+        self.output_read_end = 0;
         self.mix = 0.0;
         self.last_difference = [0.0; 2];
         let Some(geometry) = Geometry::new(sample_rate) else {
@@ -82,6 +85,12 @@ impl RevoxDspState {
         buffer: &mut AudioBuffer,
         offline: bool,
     ) {
+        if let Some(lane) = &self.lane
+            && lane.diagnostics
+        {
+            lane.callback_position
+                .store(self.position, Ordering::Relaxed);
+        }
         if self
             .worker
             .as_ref()
@@ -103,6 +112,12 @@ impl RevoxDspState {
             for (channel, sample) in output.iter().enumerate().take(channels) {
                 buffer.output(channel)[index] = *sample;
             }
+        }
+        if let Some(lane) = &self.lane
+            && lane.diagnostics
+        {
+            lane.callback_position
+                .store(self.position, Ordering::Relaxed);
         }
     }
 
@@ -154,6 +169,9 @@ impl RevoxDspState {
                     break;
                 };
                 if !offline || !self.can_wait(params) {
+                    if lane.diagnostics {
+                        lane.dropped_input_packets.fetch_add(1, Ordering::Relaxed);
+                    }
                     lane.output_floor
                         .fetch_max(returned.start + returned.len as u64, Ordering::Release);
                     params.status.available(false);
@@ -223,12 +241,28 @@ impl RevoxDspState {
         loop {
             if self.output.is_none() {
                 self.output = lane.output.pop();
+                self.output_read_end = self.output.as_ref().map_or(0, |packet| packet.start);
             }
             if self.output.as_ref().is_some_and(|packet| {
                 packet.start + packet.len as u64 <= position
                     || packet.start < self.region_start
                     || packet.channels != self.channels
             }) {
+                if lane.diagnostics
+                    && self
+                        .output
+                        .as_ref()
+                        .is_some_and(|packet| packet.start + packet.len as u64 <= position)
+                {
+                    let unread = self.output.as_ref().map_or(0, |packet| {
+                        (packet.start + packet.len as u64).saturating_sub(self.output_read_end)
+                    });
+                    if unread > 0 {
+                        lane.expired_output_packets.fetch_add(1, Ordering::Relaxed);
+                        lane.expired_output_frames
+                            .fetch_add(unread, Ordering::Relaxed);
+                    }
+                }
                 self.output = None;
                 continue;
             }
@@ -237,6 +271,15 @@ impl RevoxDspState {
                 return None;
             }
             if position < packet.start + packet.len as u64 {
+                if lane.diagnostics {
+                    let skipped = position.saturating_sub(self.output_read_end);
+                    if skipped > 0 {
+                        lane.expired_output_packets.fetch_add(1, Ordering::Relaxed);
+                        lane.expired_output_frames
+                            .fetch_add(skipped, Ordering::Relaxed);
+                    }
+                    self.output_read_end = position + 1;
+                }
                 return Some(packet.samples[(position - packet.start) as usize]);
             }
             self.output = None;

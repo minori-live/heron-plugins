@@ -7,12 +7,13 @@ use crate::{
 use crossbeam_queue::ArrayQueue;
 use heron_revox_dsp::DspError;
 use std::{
+    io::Write,
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 pub(crate) const PACKET_FRAMES: usize = 128;
@@ -45,6 +46,13 @@ pub(crate) struct Lane {
     /// Already queued output remains usable, including earlier timestamps.
     pub output_floor: AtomicU64,
     pub stop: AtomicBool,
+    // Diagnostic branch only: the callback publishes bounded counters; only the
+    // worker reads clocks or writes diagnostics. These never affect scheduling.
+    pub diagnostics: bool,
+    pub callback_position: AtomicU64,
+    pub dropped_input_packets: AtomicU64,
+    pub expired_output_packets: AtomicU64,
+    pub expired_output_frames: AtomicU64,
 }
 
 impl Lane {
@@ -58,6 +66,12 @@ impl Lane {
             output: ArrayQueue::new(queue_packets),
             output_floor: AtomicU64::new(0),
             stop: AtomicBool::new(false),
+            diagnostics: std::env::var_os("HERON_REVOX_DIAGNOSTICS").as_deref()
+                == Some(std::ffi::OsStr::new("1")),
+            callback_position: AtomicU64::new(0),
+            dropped_input_packets: AtomicU64::new(0),
+            expired_output_packets: AtomicU64::new(0),
+            expired_output_frames: AtomicU64::new(0),
         }
     }
 }
@@ -143,6 +157,7 @@ fn run<R: Renderer>(
     let mut received_end = 0;
     let mut channels = 0;
     let mut stream: Option<Stream<R>> = None;
+    let mut live_seq = 0_u64;
     while !lane.stop.load(Ordering::Acquire) {
         let Some(packet) = lane.input.pop() else {
             thread::sleep(Duration::from_millis(1));
@@ -168,12 +183,23 @@ fn run<R: Renderer>(
             if lane.stop.load(Ordering::Acquire) {
                 return;
             }
-            let Ok(prepared) = prepared else {
-                status.set(ProcessingState::Failed);
-                return;
+            let prepared = match prepared {
+                Ok(prepared) => prepared,
+                Err(error) => {
+                    if lane.diagnostics {
+                        let _ = writeln!(
+                            std::io::stderr(),
+                            "REVOX_WORKER event=prepare_error channels={} error={error:?}",
+                            packet.channels
+                        );
+                    }
+                    status.set(ProcessingState::Failed);
+                    return;
+                }
             };
             stream = Some(prepared);
             channels = packet.channels;
+            live_seq = 0;
             status.set(ProcessingState::Ready);
         }
         let Some(stream) = stream.as_mut() else {
@@ -181,14 +207,25 @@ fn run<R: Renderer>(
             return;
         };
         stream.push(&packet);
+        let started = lane.diagnostics.then(Instant::now);
         let rendered = match stream.render_ready() {
             Ok(Some(rendered)) => rendered,
             Ok(None) => continue,
-            Err(_) => {
+            Err(error) => {
+                if lane.diagnostics {
+                    let _ = writeln!(
+                        std::io::stderr(),
+                        "REVOX_WORKER event=render_error live_seq={} channels={channels} error={error:?}",
+                        live_seq + 1
+                    );
+                }
                 status.set(ProcessingState::Failed);
                 return;
             }
         };
+        live_seq += 1;
+        let render_ms = started.map(|start| start.elapsed().as_secs_f64() * 1000.0);
+        let completion_position = lane.callback_position.load(Ordering::Relaxed);
         for (index, chunk) in rendered.samples.chunks(PACKET_FRAMES).enumerate() {
             let mut packet = Packet::new(
                 rendered.start + (index * PACKET_FRAMES) as u64,
@@ -204,6 +241,27 @@ fn run<R: Renderer>(
                 packet = returned;
                 thread::sleep(Duration::from_millis(1));
             }
+        }
+        if let Some(started) = started {
+            let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
+            let deadline = rendered.start + geometry.latency as u64;
+            let ahead_ms = (deadline as f64 - completion_position as f64) * 1000.0 / sample_rate;
+            let _ = writeln!(
+                std::io::stderr(),
+                "REVOX_WORKER event=window live_seq={live_seq} channels={channels} output_start={} output_frames={} render_ms={:.3} publish_ms={:.3} completion_position={completion_position} start_deadline_ahead_ms={ahead_ms:.3} expired_frames_at_completion={} input_queue_packets={} output_queue_packets={} dropped_input_packets={} expired_output_packets={} expired_output_frames={}",
+                rendered.start,
+                rendered.samples.len(),
+                render_ms.unwrap_or_default(),
+                elapsed_ms - render_ms.unwrap_or_default(),
+                completion_position
+                    .saturating_sub(deadline)
+                    .min(rendered.samples.len() as u64),
+                lane.input.len(),
+                lane.output.len(),
+                lane.dropped_input_packets.load(Ordering::Relaxed),
+                lane.expired_output_packets.load(Ordering::Relaxed),
+                lane.expired_output_frames.load(Ordering::Relaxed),
+            );
         }
     }
 }

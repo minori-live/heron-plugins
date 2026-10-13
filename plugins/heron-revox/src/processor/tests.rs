@@ -65,6 +65,35 @@ fn timestamped_wet_output_skips_late_packets_and_keeps_future_audio_in_place() {
 }
 
 #[test]
+fn diagnostics_count_only_unread_expired_output_without_realtime_work() {
+    let mut state = prepared(128);
+    let mut lane = Lane::new();
+    lane.diagnostics = true;
+    let lane = Arc::new(lane);
+    state.lane = Some(lane.clone());
+    for start in [0, 128, 256] {
+        let mut packet = Packet::new(start, 2, 0.0);
+        packet.len = 128;
+        assert!(lane.output.push(packet).is_ok());
+    }
+    assert_realtime_clean(|| {
+        let _section = truce::rt::RtSection::enter();
+        for position in 0..128 {
+            assert!(state.take_wet(position).is_some());
+        }
+        // The next packet's first 72 frames are late; its remaining frames play.
+        for position in 200..256 {
+            assert!(state.take_wet(position).is_some());
+        }
+        // The third packet is completely late. Fully consumed packets do not
+        // contribute to either diagnostic counter when they are retired.
+        assert!(state.take_wet(384).is_none());
+    });
+    assert_eq!(lane.expired_output_packets.load(Ordering::Relaxed), 2);
+    assert_eq!(lane.expired_output_frames.load(Ordering::Relaxed), 200);
+}
+
+#[test]
 fn full_input_queue_drops_a_packet_and_preserves_its_parameter_timestamp() {
     let params = RevoxParams::default();
     params.set_plain(0, 3.0);

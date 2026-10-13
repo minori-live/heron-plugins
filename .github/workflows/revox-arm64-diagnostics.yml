@@ -1,0 +1,138 @@
+name: Revox ARM64 realtime diagnostics
+
+on:
+  push:
+    branches: [diagnostic/revox-arm64-deadlines]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: revox-arm64-diagnostics-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  revox-models:
+    uses: ./.github/workflows/revox-models.yml
+    with:
+      artifact_name: revox-arm64-diagnostic-models
+
+  diagnostics:
+    needs: revox-models
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Record runner and source
+        run: |
+          mkdir -p target/revox-diagnostics/evidence
+          {
+            date --utc --iso-8601=seconds
+            git rev-parse HEAD
+            uname -a
+            lscpu
+            cat /proc/meminfo
+            cat /proc/self/cgroup
+            for file in /sys/fs/cgroup/cpu.max /sys/fs/cgroup/cpu.stat /sys/fs/cgroup/cpuset.cpus.effective; do
+              if [[ -r "$file" ]]; then
+                printf '\n%s\n' "$file"
+                cat "$file"
+              fi
+            done
+          } > target/revox-diagnostics/evidence/runner.txt
+      - id: setup_build
+        uses: ./.github/actions/setup-build
+        with:
+          github-token: ${{ github.token }}
+      - name: Fetch pinned VST3 SDK and compile the shared realtime probe
+        run: |
+          mise run sdk:vst3
+          c++ -std=c++17 -O2 -pthread -I third_party/vst3sdk \
+            fixtures/revox-realtime-probe.cpp -ldl \
+            -o target/revox-diagnostics/revox-realtime-probe
+          {
+            c++ --version
+            rustc --version
+            cargo --version
+            node --version
+            sha256sum target/revox-diagnostics/revox-realtime-probe
+          } > target/revox-diagnostics/evidence/toolchain.txt
+      - name: Download and verify immutable v0.8.1 baseline
+        run: node scripts/diagnostics/revox-arm64.ts baseline
+      - name: Measure published v0.8.1 for 30 seconds
+        id: baseline
+        continue-on-error: true
+        env:
+          HERON_REVOX_DIAGNOSTICS: "1"
+          HERON_REVOX_FORCE_CPU: "1"
+          LD_LIBRARY_PATH: ""
+          ORT_DYLIB_PATH: /must-not-load-host-onnxruntime
+        run: |
+          probe="$GITHUB_WORKSPACE/target/revox-diagnostics/revox-realtime-probe"
+          binary="$GITHUB_WORKSPACE/target/revox-diagnostics/baseline/bundles/Heron Revox.vst3/Contents/aarch64-linux/Heron Revox.so"
+          evidence="$GITHUB_WORKSPACE/target/revox-diagnostics/evidence"
+          cd "$RUNNER_TEMP"
+          set +e
+          timeout --signal=TERM --kill-after=10s 180s "$probe" "$binary" > "$evidence/baseline.log" 2>&1
+          result=$?
+          printf '%s\n' "$result" > "$evidence/baseline.exit-code"
+          cat "$evidence/baseline.log"
+          exit "$result"
+      - name: Restore checksum-verified model inputs
+        uses: actions/download-artifact@v8
+        with:
+          name: revox-arm64-diagnostic-models
+          path: target/revox
+      - name: Build only Revox using the complete release profile
+        run: node scripts/diagnostics/revox-arm64.ts build 2>&1 | tee target/revox-diagnostics/evidence/build.log
+      - name: Measure instrumented Revox for 30 seconds
+        id: instrumented
+        continue-on-error: true
+        env:
+          HERON_REVOX_DIAGNOSTICS: "1"
+          HERON_REVOX_FORCE_CPU: "1"
+          LD_LIBRARY_PATH: ""
+          ORT_DYLIB_PATH: /must-not-load-host-onnxruntime
+        run: |
+          probe="$GITHUB_WORKSPACE/target/revox-diagnostics/revox-realtime-probe"
+          binary="$GITHUB_WORKSPACE/target/revox-diagnostics/instrumented/bundles/Heron Revox.vst3/Contents/aarch64-linux/Heron Revox.so"
+          evidence="$GITHUB_WORKSPACE/target/revox-diagnostics/evidence"
+          cd "$RUNNER_TEMP"
+          set +e
+          timeout --signal=TERM --kill-after=10s 180s "$probe" "$binary" > "$evidence/instrumented.log" 2>&1
+          result=$?
+          printf '%s\n' "$result" > "$evidence/instrumented.exit-code"
+          cat "$evidence/instrumented.log"
+          exit "$result"
+      - name: Upload evidence even when the experiment fails
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: revox-arm64-diagnostics-${{ github.sha }}
+          path: target/revox-diagnostics/evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve the actual experiment outcome
+        if: always()
+        env:
+          BASELINE_RESULT: ${{ steps.baseline.outcome }}
+          INSTRUMENTED_RESULT: ${{ steps.instrumented.outcome }}
+        run: |
+          {
+            printf 'Published v0.8.1 realtime probe: %s\n' "$BASELINE_RESULT"
+            printf 'Instrumented realtime probe: %s\n' "$INSTRUMENTED_RESULT"
+            printf 'The diagnostic bundle is an experiment, not a new release.\n'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          if [[ "$BASELINE_RESULT" != success || "$INSTRUMENTED_RESULT" != success ]]; then
+            echo '::error::At least one realtime probe failed or did not run; inspect the retained evidence.'
+            exit 1
+          fi
