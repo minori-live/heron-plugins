@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { archiveTree, safeSymlink } from "./archive.ts"
 import { auVersion } from "./version.ts"
-import { manifestPlugins, assetName } from "./catalog.ts"
+import { manifestPlugins, assetName, bundleName, revox } from "./catalog.ts"
 
 test("VST3 suite identities preserve saved Heron projects", () => {
   assert.deepEqual(
@@ -30,6 +30,14 @@ test("VST3 suite identities preserve saved Heron projects", () => {
       ["live.minori.heron.metronome", "aumu:HRMT:HRON"]
     ]
   )
+})
+
+test("Revox owns a separate stable identity without changing the released suite", () => {
+  assert.equal(revox.builtinId, "live.minori.heron.revox")
+  assert.equal(revox.nativeId, "801E1EF7D1FBA46DD7EE039C0317622C")
+  assert.equal(`${revox.auType}:${revox.fourcc}:HRON`, "aufx:HRRV:HRON")
+  assert.equal(bundleName(revox, "vst3"), "Heron Revox.vst3")
+  assert.equal(bundleName(revox, "au2"), "Heron Revox.component")
 })
 
 test("AU component version changes with the suite version and rejects overflow", () => {

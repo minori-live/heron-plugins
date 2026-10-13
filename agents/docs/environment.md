@@ -197,6 +197,140 @@ documentation directories. Source-size thresholds in
 [Engineering standards](engineering-standards.md) are review requirements;
 this repository currently has no automatic source-size check command.
 
+## Revox DSP experiment
+
+The Revox crate can be exercised without building a plug-in or opening a DAW.
+Run from this repository root in a login shell. Acquire the pinned Revox model:
+
+```sh
+node scripts/fetch-revox-model.ts
+```
+
+FCPE's official repository does not provide this ONNX interface. Export its
+checksum-verified MIT checkpoint with the development-only Python environment:
+
+```sh
+uv venv --python 3.12 target/revox/venv
+uv pip install --python target/revox/venv/bin/python --require-hashes -r scripts/revox/requirements.lock
+target/revox/venv/bin/python scripts/revox/export_fcpe.py
+```
+
+On Windows use `target/revox/venv/Scripts/python.exe` for both Python paths.
+`uv` is a development prerequisite for these export commands, not a plug-in
+runtime dependency. The exporter validates dynamic frame lengths against the
+original PyTorch implementation and writes `fcpe-export.json`, feature references,
+the upstream MIT license and the ONNX file under ignored `target/revox/`.
+Revox's weight hash is checked on both download and reuse. Model files are not
+downloaded by ordinary Cargo tests or at audio-processing time.
+
+Run deterministic frontend, resampling, pitch alignment and backend-policy tests:
+
+```sh
+cargo test --locked -p heron-revox-dsp --lib
+cargo clippy --locked -p heron-revox-dsp --all-targets -- -D warnings
+```
+
+After model acquisition, run actual-model evidence and the performance probe:
+
+On macOS, first set `export MACOSX_DEPLOYMENT_TARGET=14.2`, matching the suite's
+release deployment target. The Revox build script locates and links Apple's
+compiler runtime required by the bundled CoreML objects.
+
+```sh
+cargo test --release --locked -p heron-revox-dsp --test model_pipeline -- --ignored
+cargo run --release --locked -p heron-revox-dsp --example revox_probe -- --chunk-ms 320
+cargo run --release --locked -p heron-revox-dsp --example revox_probe -- --input vocal-48k-mono.wav --semitones 3 --output-dir target/revox/vocal-up3
+```
+
+The probe uses automatic acceleration and a generated 220 Hz harmonic signal.
+It writes 32-bit float WAVs and JSON containing loading/processing times, registered
+providers and fallbacks, RMS/peak, F0 summaries, and independent-window throughput.
+Output F0 uses FCPE again and is not an independent quality assessment. A realtime
+factor below one means throughput exceeds audio duration, not that monitoring
+latency or window seams are acceptable. `--chunk-ms` intentionally benchmarks
+independent windows and does not implement continuous streaming.
+
+The 2026-10-13 Apple M2 Pro run used the default CoreML → WebGPU → CPU chain,
+registered successfully for both models, and a 2-second synthetic harmonic signal.
+Output retained all 96,000 samples, was finite, and had a median estimated F0 of
+220.15 Hz for a 219.98 Hz input at zero shift. First whole-input processing took
+981.5 ms, excluding 2061.6 ms of model loading. Seven independent windows of up
+to 320 ms had a 20.0 ms median and 199.8 ms maximum processing time. Shape changes
+and model warm-up affect these numbers. Windowed output differed from the whole
+output by 1.35 times its RMS, so these timings do not establish seamless streaming.
+The generated report and WAVs are under ignored `target/revox/probe-default-ep/`.
+
+Default EPs use the largest compatible rc.14 prebuilt archive for each target:
+
+| Target              | Registration priority, ending in CPU        |
+| ------------------- | ------------------------------------------- |
+| Apple Silicon macOS | CoreML, WebGPU, CPU                         |
+| Windows x64         | TensorRT RTX, TensorRT, CUDA, DirectML, CPU |
+| Windows arm64       | DirectML, CPU                               |
+| Linux x64/arm64     | TensorRT RTX, TensorRT, CUDA, CPU           |
+
+Session creation attempts every entry; unavailable providers leave diagnostics and
+later providers still register. CPU is the final fallback, with no backend mode
+selector. The report's `registered` array records session registration rather than measured
+operator placement. The `fallback` array records individual registration errors
+or a failed graph initialization with its complete attempted chain.
+
+Prebuilt does not mean driver-free: ORT's current CUDA binaries require CUDA
+13.2 or later and cuDNN 9.23 or later; TensorRT variants also need their matching
+runtime libraries. The `copy-dylibs` feature supplies ORT's distributed helper
+libraries for development. WebGPU uses Dawn and remains experimental upstream.
+Native execution was tested on Apple Silicon; Windows/Linux GPU paths still need
+validation on their respective hardware.
+
+The [pinned prebuilt matrix](https://github.com/pykeio/ort/blob/1ee1f842e8a381153ede7a506f01734e545854e0/ort-sys/build/download/dist.tsv)
+offers Windows/Linux WebGPU, OpenVINO, and Linux x64 MIGraphX as separate archives,
+not extensions that can be merged into the default NVIDIA archive. Enabling all
+those Cargo features together fails distribution resolution. Intel macOS has no
+rc.14 prebuilt; it needs a compatible externally supplied ORT build
+(`ORT_LIB_PATH`). Revox has a separate development package as described below.
+
+### Heron Revox plug-in
+
+Prepare the models above before running workspace Cargo checks: the plug-in's
+build script verifies their pinned SHA-256 values and embeds them in the native
+binary. The Test workflow exports the graphs once on Apple Silicon and supplies
+that same checked artifact to each platform's workspace checks.
+
+```sh
+export MACOSX_DEPLOYMENT_TARGET=14.2 # macOS
+cargo test --release --locked -p heron-revox --features rt-paranoid --lib
+cargo test --release --locked -p heron-revox embedded_models_render -- --ignored
+cargo test --release --locked -p heron-revox render_editor_evidence -- --ignored
+pnpm build:revox --au
+```
+
+`build:revox` builds a separate Apple Silicon VST3, optionally AUv2 with `--au`,
+with embedded models, a bundle-local WebGPU Dawn library, licenses and model
+provenance. It verifies the extracted bundle, native identities and actual VST3
+audio: a four-second 220 Hz harmonic signal with +3 semitones and +50 cents must
+produce the combined shift, finite samples and the reported leading latency.
+AU builds also pass registration/version checks and `auval`. This is an
+ad-hoc-signed development package, separate from the existing universal suite
+release; Intel macOS is not supported by the pinned ORT prebuilts. The standard
+suite build continues to package its four existing plug-ins. Windows/Linux Rust
+paths remain configured but have no Revox native-package validation claim.
+
+The editor has two controls: Semitones (-12..12, step 1) and Cents (-100..100,
+step 1), combined additively. Both default to zero and still resynthesize audio.
+Double-click a dial or click its readout for numeric input, Command/Control-click
+resets, and Shift-drag adjusts finely. Tab selects a dial; arrows change by one,
+Shift+arrows by three semitones or ten cents, Home resets, and Enter opens numeric
+entry. Escape cancels the edit. Host automation and saved states use IDs 0 and 1.
+
+Supported host rates are 44.1/48/88.2/96/176.4/192 kHz, mono or stereo. Reported
+latency is 1.48 seconds plus 128 host samples. Revox targets track processing at
+this stage. It uses 160 ms output steps with model context and a 40 ms overlap;
+this is not an acceptance claim for transparent vocal seams or live monitoring.
+During loading, missed worker deadlines or failure, output is aligned dry audio
+and the footer shows the state. Failed processing is retried at host reactivation.
+An unsupported rate passes dry audio with zero latency. Offline bounce waits for
+worker output; real-time and buffered playback never wait for inference.
+
 ## Dependency and suite version changes
 
 Use stable published dependencies and runtimes. Prerelease, nightly, canary or

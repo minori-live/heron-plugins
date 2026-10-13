@@ -33,6 +33,15 @@ au_tag = "Synthesizer"
 vst3_subcategory = "Synth"
 
 [[plugin]]
+name = "Heron Revox"
+bundle_id = "revox"
+crate = "heron-revox"
+category = "effect"
+fourcc = "HRRV"
+au_tag = "Effects"
+vst3_subcategory = "Pitch Shift"
+
+[[plugin]]
 name = "Heron Metronome"
 bundle_id = "metronome"
 crate = "heron-metronome"

@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "node scripts/build.ts",
+    "build:revox": "node scripts/build-revox.ts",
     "check": "tsc6 --noEmit && node --test scripts/*.test.ts",
     "format": "oxfmt",
     "format:check": "oxfmt --check",

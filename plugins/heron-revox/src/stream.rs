@@ -1,0 +1,180 @@
+//! Context windows and overlap stitching, entirely owned by the background worker.
+
+use crate::{resampling::Resampler, worker::Packet};
+use heron_revox_dsp::{DspError, RevoxDsp};
+use std::collections::VecDeque;
+
+pub(crate) const MODEL_RATE: f64 = 48_000.0;
+pub(crate) const MODEL_WINDOW: usize = 101_760;
+
+#[derive(Clone, Copy)]
+pub(crate) struct Geometry {
+    pub context: usize,
+    pub hop: usize,
+    pub overlap: usize,
+    pub latency: usize,
+}
+
+impl Geometry {
+    pub fn new(sample_rate: f64) -> Option<Self> {
+        if ![44_100.0, 48_000.0, 88_200.0, 96_000.0, 176_400.0, 192_000.0].contains(&sample_rate) {
+            return None;
+        }
+        let samples = |seconds: f64| (seconds * sample_rate).round() as usize;
+        Some(Self {
+            context: samples(0.96),
+            hop: samples(0.16),
+            overlap: samples(0.04),
+            // 1.16 s of future input plus 320 ms inference scheduling allowance.
+            latency: samples(1.48) + crate::worker::PACKET_FRAMES,
+        })
+    }
+
+    pub fn window(self) -> usize {
+        self.context * 2 + self.hop + self.overlap
+    }
+}
+
+pub(crate) trait Renderer {
+    fn render(&mut self, input: &[f32], shift: f32) -> Result<Vec<f32>, DspError>;
+}
+
+impl Renderer for RevoxDsp {
+    fn render(&mut self, input: &[f32], shift: f32) -> Result<Vec<f32>, DspError> {
+        let analysis = self.analyze(input)?;
+        self.render(&analysis, shift, 42)
+    }
+}
+
+pub(crate) struct Rendered {
+    pub start: u64,
+    pub samples: Vec<[f32; 2]>,
+}
+
+pub(crate) struct Stream<R> {
+    renderer: R,
+    geometry: Geometry,
+    to_model: Resampler,
+    from_model: Resampler,
+    history: VecDeque<[f32; 2]>,
+    history_start: u64,
+    received_end: u64,
+    next_start: u64,
+    channels: usize,
+    controls: VecDeque<(u64, f32)>,
+    last_shift: f32,
+    tail: Option<Vec<[f32; 2]>>,
+}
+
+impl<R: Renderer> Stream<R> {
+    pub fn new(renderer: R, sample_rate: f64, geometry: Geometry) -> Self {
+        Self {
+            renderer,
+            geometry,
+            to_model: Resampler::new(sample_rate, MODEL_RATE),
+            from_model: Resampler::new(MODEL_RATE, sample_rate),
+            history: VecDeque::with_capacity(geometry.window() + crate::worker::PACKET_FRAMES),
+            history_start: 0,
+            received_end: 0,
+            next_start: 0,
+            channels: 0,
+            controls: VecDeque::new(),
+            last_shift: 0.0,
+            tail: None,
+        }
+    }
+
+    pub fn push(&mut self, packet: &Packet) {
+        if packet.start != self.received_end
+            || (self.channels != 0 && self.channels != packet.channels)
+        {
+            // A missed input packet starts a new contiguous region. Never bridge
+            // a dropped interval with an old waveform or stale model context.
+            self.history.clear();
+            self.controls.clear();
+            self.history_start = packet.start;
+            self.next_start = packet.start;
+            self.tail = None;
+        }
+        self.channels = packet.channels;
+        self.history.extend(&packet.samples[..packet.len]);
+        self.controls.push_back((packet.start, packet.shift));
+        self.received_end = packet.start + packet.len as u64;
+    }
+
+    pub fn render_ready(&mut self) -> Result<Option<Rendered>, DspError> {
+        let geometry = self.geometry;
+        let required_end =
+            self.next_start + (geometry.hop + geometry.overlap + geometry.context) as u64;
+        if self.received_end < required_end {
+            return Ok(None);
+        }
+        while self
+            .controls
+            .front()
+            .is_some_and(|(start, _)| *start <= self.next_start)
+        {
+            if let Some((_, shift)) = self.controls.pop_front() {
+                self.last_shift = shift;
+            }
+        }
+        let mut output = vec![[0.0; 2]; geometry.hop];
+        let mut tail = vec![[0.0; 2]; geometry.overlap];
+        for channel in 0..self.channels {
+            let input: Vec<_> = (0..geometry.window())
+                .map(|index| {
+                    let position = self.next_start as i64 + index as i64 - geometry.context as i64;
+                    if position < self.history_start as i64 {
+                        0.0
+                    } else {
+                        self.history
+                            .get((position as u64 - self.history_start) as usize)
+                            .map_or(0.0, |frame| frame[channel])
+                    }
+                })
+                .collect();
+            let model_input = self.to_model.convert(&input, MODEL_WINDOW);
+            let model_output = self.renderer.render(&model_input, self.last_shift)?;
+            if model_output.len() != MODEL_WINDOW
+                || model_output.iter().any(|sample| !sample.is_finite())
+            {
+                return Err(DspError::OutputShape {
+                    model: "Revox",
+                    output: "waveform",
+                });
+            }
+            let rendered = self.from_model.convert(&model_output, geometry.window());
+            for (index, frame) in output.iter_mut().enumerate() {
+                let value = rendered[geometry.context + index];
+                frame[channel] = if index < geometry.overlap {
+                    if let Some(previous) = &self.tail {
+                        let phase = (index + 1) as f32 / (geometry.overlap + 1) as f32;
+                        let wet = 0.5 - 0.5 * (std::f32::consts::PI * phase).cos();
+                        previous[index][channel] * (1.0 - wet) + value * wet
+                    } else {
+                        value
+                    }
+                } else {
+                    value
+                };
+            }
+            for (index, frame) in tail.iter_mut().enumerate() {
+                frame[channel] = rendered[geometry.context + geometry.hop + index];
+            }
+        }
+        let start = self.next_start;
+        self.next_start += geometry.hop as u64;
+        self.tail = Some(tail);
+        let keep_from = self.next_start.saturating_sub(geometry.context as u64);
+        let remove = keep_from.saturating_sub(self.history_start) as usize;
+        self.history.drain(..remove.min(self.history.len()));
+        self.history_start = self.history_start.max(keep_from);
+        Ok(Some(Rendered {
+            start,
+            samples: output,
+        }))
+    }
+}
+
+#[cfg(test)]
+mod tests;

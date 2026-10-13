@@ -163,19 +163,23 @@ export async function validateAax(stage: string) {
         { recursive: true, verbatimSymlinks: true }
       )
     }
-    const output = run("cargo", ["truce", "validate", "--aax", "--aax-tests", "full"], {
-      capture: true,
-      stderr: true
-    })
-    if (output.includes("SKIP") || output.includes("pluginrunner"))
-      throw new Error("AAX validation skipped required release tests")
     for (const plugin of plugins) {
+      const output = run(
+        "cargo",
+        ["truce", "validate", "-p", plugin.crate, "--aax", "--aax-tests", "full"],
+        {
+          capture: true,
+          stderr: true
+        }
+      )
+      if (output.includes("SKIP") || output.includes("pluginrunner"))
+        throw new Error("AAX validation skipped required release tests")
       const line = output.split("\n").find((line) => line.includes(`${plugin.name} ... PASS (`))
       const tally = line?.match(/PASS \((\d+)\/(\d+)\)/)
       if (!tally || Number(tally[1]) === 0 || tally[1] !== tally[2])
         throw new Error(`Missing complete nonzero AAX validation results for ${plugin.name}`)
+      console.log(output)
     }
-    console.log(output)
   } finally {
     for (const { installed, backup, exists } of backups.reverse()) {
       await rm(installed, { recursive: true, force: true })

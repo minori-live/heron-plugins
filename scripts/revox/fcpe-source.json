@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/CNChTu/FCPE",
+  "revision": "6a149c1afb1c7e7821b71869dfb31ad50c95b516",
+  "license": "MIT",
+  "checkpoint": "torchfcpe/assets/fcpe_c_v001.pt",
+  "files": {
+    "torchfcpe/assets/fcpe_c_v001.pt": "b9aeaeb673436eeda50ceafd632aa681aa63417e52eae4207503d180c9b10015",
+    "torchfcpe/models.py": "7c94a99d10878f8527338f08002a714095d2a17d2a7ef54eedcfc6c5bda55cd5",
+    "torchfcpe/model_conformer_naive.py": "1eb3368ecd9b8d318630b447acf334342f30513d5ed775f03215bf707b624a69",
+    "torchfcpe/mel_extractor.py": "8e5a39d591c76b75bcd299879dc6034f1bb8cf227ce292f03200a642e7416065",
+    "LICENSE": "a7bc5dbde7b601271495b838ac903ad57657b791b14a9f9de70f35300ae8d4d8"
+  }
+}

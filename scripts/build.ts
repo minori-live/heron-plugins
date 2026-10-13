@@ -63,32 +63,41 @@ if (import.meta.main) {
     run("rustup", ["target", "add", "aarch64-apple-darwin", "x86_64-apple-darwin"])
     // The pinned package path links real MH_BUNDLE VST3 binaries for BOTH slices.
     // Its temporary installers are build intermediates, never release assets.
-    run(
-      "cargo",
-      [
-        "truce",
-        "package",
-        "--formats",
-        formats.join(","),
-        "--universal",
-        "--no-notarize",
-        "--no-sign",
-        "--no-suite",
-        "--target-cpu",
-        "baseline"
-      ],
-      {
-        env: {
-          ...env,
-          TRUCE_SIGNING_IDENTITY: "-"
+    for (const plugin of plugins)
+      run(
+        "cargo",
+        [
+          "truce",
+          "package",
+          "-p",
+          plugin.crate,
+          "--formats",
+          formats.join(","),
+          "--universal",
+          "--no-notarize",
+          "--no-sign",
+          "--no-suite",
+          "--target-cpu",
+          "baseline"
+        ],
+        {
+          env: {
+            ...env,
+            TRUCE_SIGNING_IDENTITY: "-"
+          }
         }
-      }
-    )
+      )
   } else {
-    if (formats.includes("vst3"))
-      run("cargo", ["truce", "build", "--vst3", "--target-cpu", "baseline"], { env })
-    if (formats.includes("aax"))
-      run("cargo", ["truce", "build", "--aax", "--target-cpu", "baseline"], { env })
+    for (const plugin of plugins) {
+      if (formats.includes("vst3"))
+        run("cargo", ["truce", "build", "-p", plugin.crate, "--vst3", "--target-cpu", "baseline"], {
+          env
+        })
+      if (formats.includes("aax"))
+        run("cargo", ["truce", "build", "-p", plugin.crate, "--aax", "--target-cpu", "baseline"], {
+          env
+        })
+    }
   }
   // cargo-truce does not expose --locked for every internal Cargo invocation.
   requireCleanSource()

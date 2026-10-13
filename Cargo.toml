@@ -2,9 +2,11 @@
 members = [
   "crates/iced-ui",
   "crates/plugin-dsp",
+  "crates/revox-dsp",
   "plugins/heron-plugin-ui",
   "plugins/heron-gain",
   "plugins/heron-eq",
+  "plugins/heron-revox",
   "plugins/heron-sine",
   "plugins/heron-metronome"
 ]
@@ -23,6 +25,15 @@ repository = "https://github.com/minori-live/heron-plugins"
 
 [workspace.dependencies]
 rustfft = "6.4.1"
+ort = { version = "=2.0.0-rc.14", default-features = false, features = [
+  "std",
+  "download-binaries",
+  "tls-native",
+  "copy-dylibs",
+  "api-31"
+] }
+hound = "3.5.1"
+thiserror = "2.0.21"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
@@ -37,6 +48,8 @@ truce-aax = "=6.3.0"
 heron-iced-ui = { path = "crates/iced-ui" }
 heron-plugin-ui = { path = "plugins/heron-plugin-ui" }
 heron-plugin-dsp = { path = "crates/plugin-dsp" }
+heron-revox-dsp = { path = "crates/revox-dsp" }
+crossbeam-queue = "0.3.14"
 
 [workspace.lints.rust]
 unexpected_cfgs = "warn"
