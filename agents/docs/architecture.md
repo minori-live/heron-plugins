@@ -148,6 +148,16 @@ outside UI drawing and audio processing. Only the current completion may be
 displayed. Worker creation failure, pending work and shutdown have explicit
 states; worker joining/destruction must never migrate to the audio callback.
 
+Gain and the NaturalPhase EQ FIR use `fearless_simd` with a SIMD level cached
+when their DSP state is prepared. CPU detection and scratch preparation stay
+outside processing; dispatch operates on a block or prepared kernel, with scalar
+tails for partial vectors. Gain uses fixed-capacity chunks and one smoothed gain
+envelope shared by its output channels. EQ retains f64 coefficients, histories
+and convolution arithmetic. Stateful IIR sections and sample-offset scheduling
+keep their existing order. RustFFT continues to own FFT instruction selection.
+Scalar-reference and fallback-backend comparisons protect the owned arithmetic;
+fallback may itself be auto-vectorized by the compiler.
+
 ## Display evidence and instance independence
 
 Editable target, accepted audio configuration, measured spectra, processing
@@ -242,7 +252,14 @@ Revox resets excitation phase between calls. The plug-in worker uses fixed
 join successive outputs. This reduces hard seams but does not restore the model's
 missing continuous excitation state or prove perceptually transparent vocals.
 Host rates 44.1/48/88.2/96/176.4/192 kHz are converted to/from the model's 48 kHz
-by a centered polyphase sinc on the worker. The embedded plugin graphs have fixed
+by a centered polyphase sinc on the worker. Both this converter and the 48-to-16 kHz
+FCPE converter use SIMD dot products for complete tap windows and retain scalar
+zero-extension at their edges. Their SIMD levels are prepared on the worker.
+The return conversion computes only the 160 ms output step and 40 ms overlap,
+using absolute output positions against the complete model waveform so cropping
+does not reset the resampling phase or move the window edges. This changes work
+performed, not context size, reported latency or overlap timing.
+The embedded plugin graphs have fixed
 time dimensions (FCPE: 213 frames; Revox: 212 frames / 101760 noise samples) and
 one symbolic `batch` dimension. The worker creates sessions with ORT's dimension
 override set to the active channel count, 1 for mono or 2 for stereo, before

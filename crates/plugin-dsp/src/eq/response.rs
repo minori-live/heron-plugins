@@ -1,5 +1,6 @@
 use super::{
     BRICKWALL_SLOPE, EqBand, EqChannel, EqConfig, EqShape, ProcessingMode, coefficients::design,
+    oversampling::oversampling_kernel,
 };
 use rustfft::num_complex::Complex64;
 use std::f64::consts::PI;
@@ -192,26 +193,6 @@ impl EqConfig {
         self.response_matrix(sample_rate, frequency_hz)
             .magnitude_db(channel)
     }
-}
-
-pub(super) const OVERSAMPLE_TAPS: usize = 33;
-pub(super) fn oversampling_kernel() -> [f64; OVERSAMPLE_TAPS] {
-    let mut kernel = std::array::from_fn(|index| {
-        let position = index as f64 - 16.0;
-        let sinc = if position == 0.0 {
-            0.5
-        } else {
-            (PI * position / 2.0).sin() / (PI * position)
-        };
-        // Blackman window: stopband rejection is part of the actual response.
-        let phase = 2.0 * PI * index as f64 / 32.0;
-        sinc * (0.42 - 0.5 * phase.cos() + 0.08 * (2.0 * phase).cos())
-    });
-    let sum: f64 = kernel.iter().sum();
-    for coefficient in &mut kernel {
-        *coefficient /= sum;
-    }
-    kernel
 }
 
 fn fir_response(kernel: &[f64], omega: f64) -> Complex64 {

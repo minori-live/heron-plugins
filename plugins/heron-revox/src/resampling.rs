@@ -1,5 +1,11 @@
 //! Window-local band-limited rate conversion; used only by the inference worker.
 
+use std::ops::Range;
+
+use fearless_simd::{Level, Simd, dispatch};
+use fearless_simd_macros::simd;
+use heron_revox_dsp::fir;
+
 const TAPS: usize = 64;
 const PHASES: usize = 1024;
 const CENTER: isize = TAPS as isize / 2 - 1;
@@ -7,6 +13,7 @@ const CENTER: isize = TAPS as isize / 2 - 1;
 pub(crate) struct Resampler {
     ratio: f64,
     coefficients: Vec<[f32; TAPS]>,
+    level: Level,
 }
 
 impl Resampler {
@@ -44,21 +51,83 @@ impl Resampler {
         Self {
             ratio,
             coefficients,
+            level: Level::new(),
         }
     }
 
     pub fn convert(&self, input: &[f32], length: usize) -> Vec<f32> {
+        self.convert_range(input, 0..length)
+    }
+
+    /// Converts absolute output positions while retaining the complete input
+    /// window. Cropping never restarts the polyphase clock or moves its edges.
+    pub fn convert_range(&self, input: &[f32], range: Range<usize>) -> Vec<f32> {
         if self.coefficients.is_empty() {
+            let available = input.get(range.start..).unwrap_or_default();
+            let copied = range.len().min(available.len());
+            let mut output = available[..copied].to_vec();
+            output.resize(range.len(), 0.0);
+            return output;
+        }
+        let mut output = vec![0.0; range.len()];
+        dispatch!(self.level, simd => convert(simd, input, self.ratio, &self.coefficients, range.start, &mut output));
+        output
+    }
+}
+
+#[simd]
+fn convert<S: Simd>(
+    simd: S,
+    input: &[f32],
+    ratio: f64,
+    coefficients: &[[f32; TAPS]],
+    start: usize,
+    output: &mut [f32],
+) {
+    for (offset, sample) in output.iter_mut().enumerate() {
+        let index = start + offset;
+        let position = index as f64 * ratio;
+        let center = position.floor() as isize;
+        let phase = ((position.fract() * PHASES as f64) as usize).min(PHASES - 1);
+        let source = center - CENTER;
+        *sample = if source >= 0 && source as usize + TAPS <= input.len() {
+            fir::dot(
+                simd,
+                &input[source as usize..source as usize + TAPS],
+                &coefficients[phase],
+            )
+        } else {
+            coefficients[phase]
+                .iter()
+                .enumerate()
+                .filter_map(|(tap, weight)| {
+                    let source = center + tap as isize - CENTER;
+                    usize::try_from(source)
+                        .ok()
+                        .and_then(|source| input.get(source))
+                        .map(|sample| sample * weight)
+                })
+                .sum()
+        };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn original_convert(resampler: &Resampler, input: &[f32], length: usize) -> Vec<f32> {
+        if resampler.coefficients.is_empty() {
             let mut result = input.to_vec();
             result.resize(length, 0.0);
             return result;
         }
         (0..length)
             .map(|index| {
-                let position = index as f64 * self.ratio;
+                let position = index as f64 * resampler.ratio;
                 let center = position.floor() as isize;
                 let phase = ((position.fract() * PHASES as f64) as usize).min(PHASES - 1);
-                self.coefficients[phase]
+                resampler.coefficients[phase]
                     .iter()
                     .enumerate()
                     .filter_map(|(tap, weight)| {
@@ -72,11 +141,51 @@ impl Resampler {
             })
             .collect()
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    #[test]
+    fn cropped_conversion_preserves_absolute_phase_zero_edges_and_partial_vectors() {
+        let input: Vec<_> = (0..257)
+            .map(|i| 0.2 + (i as f32 * 0.13).sin() * 0.3)
+            .collect();
+        for host_rate in [44_100.0, 48_000.0, 88_200.0, 96_000.0, 176_400.0, 192_000.0] {
+            for (from, to) in [(host_rate, 48_000.0), (48_000.0, host_rate)] {
+                let mut resampler = Resampler::new(from, to);
+                let expected = original_convert(&resampler, &input, 1_117);
+                for level in [Level::fallback(), Level::new()] {
+                    resampler.level = level;
+                    let full = resampler.convert(&input, expected.len());
+                    for (actual, expected) in full.iter().zip(&expected) {
+                        // Same 1e-6 amplitude budget as the FCPE FIR edge policy.
+                        assert!((actual - expected).abs() < 1e-6, "{from}->{to}, {level:?}");
+                    }
+                    for range in [0..0, 0..1, 0..67, 23..211, 193..347, 1_097..1_117] {
+                        let cropped = resampler.convert_range(&input, range.clone());
+                        // Cropping changes only which output points we compute;
+                        // each point must be bit-identical to full SIMD + slice.
+                        assert_eq!(cropped, full[range], "{from}->{to}, {level:?}");
+                    }
+                    assert_eq!(resampler.convert_range(&[], 3..20), vec![0.0; 17]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn streaming_window_crop_matches_full_conversion_at_every_host_rate() {
+        let input: Vec<_> = (0..101_760)
+            .map(|i| (i as f32 * 0.017).sin() * 0.3)
+            .collect();
+        for rate in [44_100.0, 48_000.0, 88_200.0, 96_000.0, 176_400.0, 192_000.0] {
+            let resampler = Resampler::new(48_000.0, rate);
+            let full = resampler.convert(&input, (2.12 * rate) as usize);
+            let start = (0.96 * rate) as usize;
+            let end = start + (0.20 * rate) as usize;
+            assert_eq!(
+                resampler.convert_range(&input, start..end),
+                full[start..end]
+            );
+        }
+    }
 
     #[test]
     fn host_conversion_preserves_voice_band_and_rejects_out_of_band_aliases() {

@@ -161,9 +161,12 @@ impl<R: Renderer> Stream<R> {
                     output: "waveform",
                 });
             }
-            let rendered = self.from_model.convert(model_output, geometry.window());
+            let rendered = self.from_model.convert_range(
+                model_output,
+                geometry.context..geometry.context + geometry.hop + geometry.overlap,
+            );
             for (index, frame) in output.iter_mut().enumerate() {
-                let value = rendered[geometry.context + index];
+                let value = rendered[index];
                 frame[channel] = if index < geometry.overlap {
                     if let Some(previous) = &self.tail {
                         let phase = (index + 1) as f32 / (geometry.overlap + 1) as f32;
@@ -177,7 +180,7 @@ impl<R: Renderer> Stream<R> {
                 };
             }
             for (index, frame) in tail.iter_mut().enumerate() {
-                frame[channel] = rendered[geometry.context + geometry.hop + index];
+                frame[channel] = rendered[geometry.hop + index];
             }
         }
         let start = self.next_start;

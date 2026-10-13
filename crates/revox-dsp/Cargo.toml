@@ -11,6 +11,8 @@ rustfft.workspace = true
 ort.workspace = true
 thiserror.workspace = true
 serde.workspace = true
+fearless_simd.workspace = true
+fearless_simd_macros.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 ort = { workspace = true, features = ["coreml", "webgpu"] }
@@ -27,6 +29,11 @@ ort = { workspace = true, features = ["nvrtx", "tensorrt", "cuda"] }
 [dev-dependencies]
 hound.workspace = true
 serde_json.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "resample"
+harness = false
 
 [lints]
 workspace = true

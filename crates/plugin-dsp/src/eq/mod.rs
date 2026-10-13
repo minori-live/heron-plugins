@@ -10,6 +10,7 @@
 mod coefficients;
 mod config;
 mod convolution;
+mod oversampling;
 mod processor;
 mod response;
 

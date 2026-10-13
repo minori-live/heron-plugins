@@ -24,6 +24,9 @@ license = "GPL-3.0-only"
 repository = "https://github.com/minori-live/heron-plugins"
 
 [workspace.dependencies]
+fearless_simd = { version = "1.1.0", features = ["force_support_fallback"] }
+fearless_simd_macros = "0.1.0"
+criterion = { version = "0.8.2", features = ["html_reports", "csv_output"] }
 rustfft = "6.4.1"
 ort = { version = "=2.0.0-rc.14", default-features = false, features = [
   "std",

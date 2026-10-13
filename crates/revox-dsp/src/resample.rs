@@ -1,10 +1,16 @@
 //! Center-aligned, antialiased 48 kHz to 16 kHz conversion for FCPE.
 //! Input is zero-extended at both ends without renormalizing the edge kernels.
 
+use fearless_simd::{Level, Simd, dispatch};
+use fearless_simd_macros::simd;
+
+use crate::fir;
+
 const RADIUS: usize = 96;
 
 pub(crate) struct PitchResampler {
     kernel: [f32; RADIUS * 2 + 1],
+    level: Level,
 }
 
 impl PitchResampler {
@@ -27,29 +33,80 @@ impl PitchResampler {
         for value in &mut kernel {
             *value /= sum;
         }
-        Self { kernel }
+        Self {
+            kernel,
+            level: Level::new(),
+        }
     }
 
     pub fn process(&self, input: &[f32]) -> Vec<f32> {
-        (0..input.len().div_ceil(3))
-            .map(|frame| {
-                let center = frame * 3;
-                self.kernel
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(tap, &weight)| {
-                        let index = (center + tap).checked_sub(RADIUS)?;
-                        Some(input.get(index).copied().unwrap_or(0.0) * weight)
-                    })
-                    .sum()
-            })
-            .collect()
+        let mut output = vec![0.0; input.len().div_ceil(3)];
+        dispatch!(self.level, simd => process(simd, input, &self.kernel, &mut output));
+        output
+    }
+}
+
+#[simd]
+fn process<S: Simd>(simd: S, input: &[f32], kernel: &[f32], output: &mut [f32]) {
+    for (frame, sample) in output.iter_mut().enumerate() {
+        let center = frame * 3;
+        *sample = if center >= RADIUS && center + RADIUS < input.len() {
+            fir::dot(simd, &input[center - RADIUS..=center + RADIUS], kernel)
+        } else {
+            // Only the two window edges need zero extension and tap checks.
+            kernel
+                .iter()
+                .enumerate()
+                .filter_map(|(tap, &weight)| {
+                    let index = (center + tap).checked_sub(RADIUS)?;
+                    Some(input.get(index).copied().unwrap_or(0.0) * weight)
+                })
+                .sum()
+        };
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tap_simd_preserves_scalar_convolution_on_edges_and_unaligned_interiors() {
+        for length in [0, 1, 63, 192, 193, 194, 257, 4_097] {
+            let input: Vec<_> = (0..length)
+                .map(|i| 0.2 + (i as f32 * 0.13).sin() * 0.3)
+                .collect();
+            let mut resampler = PitchResampler::new();
+            // The original per-tap zero-extension calculation is the reference.
+            let expected: Vec<f32> = (0..input.len().div_ceil(3))
+                .map(|frame| {
+                    let center = frame * 3;
+                    resampler
+                        .kernel
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(tap, weight)| {
+                            let index = (center + tap).checked_sub(RADIUS)?;
+                            Some(input.get(index).copied().unwrap_or(0.0) * weight)
+                        })
+                        .sum()
+                })
+                .collect();
+            for level in [Level::fallback(), Level::new()] {
+                resampler.level = level;
+                let actual = resampler.process(&input);
+                assert_eq!(actual.len(), expected.len());
+                for (index, (actual, expected)) in actual.iter().zip(&expected).enumerate() {
+                    // Preserve the existing zero-extension comparison's 1e-6
+                    // absolute amplitude limit (below -120 dBFS).
+                    assert!(
+                        (actual - expected).abs() < 1e-6,
+                        "length {length}, sample {index}, {level:?}: {actual} != {expected}"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn preserves_pitch_band_level_and_rejects_aliases() {
