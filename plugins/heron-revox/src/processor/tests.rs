@@ -7,6 +7,7 @@ fn prepared(latency: usize) -> RevoxDspState {
         lane: Some(Arc::new(Lane::new())),
         dry: vec![[0.0; 2]; latency],
         latency,
+        channels: 2,
         mix_step: 1.0,
         ..RevoxDspState::default()
     }
@@ -94,7 +95,11 @@ fn full_input_queue_drops_a_packet_and_preserves_its_parameter_timestamp() {
 fn offline_after_a_gap_uses_delayed_dry_without_waiting_for_future_input() {
     struct Identity;
     impl crate::stream::Renderer for Identity {
-        fn render(&mut self, input: &[f32], _: f32) -> Result<Vec<f32>, heron_revox_dsp::DspError> {
+        fn render_channels(
+            &mut self,
+            input: &[Vec<f32>],
+            _: f32,
+        ) -> Result<Vec<Vec<f32>>, heron_revox_dsp::DspError> {
             Ok(input.to_vec())
         }
     }
@@ -107,7 +112,9 @@ fn offline_after_a_gap_uses_delayed_dry_without_waiting_for_future_input() {
         overlap: 32,
         latency: 256,
     };
-    let worker = Worker::with_renderer(Identity, 48_000.0, geometry, params.status.clone());
+    let worker = Worker::with_factory(48_000.0, geometry, params.status.clone(), 4, |_| {
+        Ok(Identity)
+    });
     let lane = worker.lane.clone();
     let mut state = prepared(geometry.latency);
     state.worker = Some(worker);
@@ -152,4 +159,178 @@ fn unsupported_rate_is_visible_passthrough_and_clears_previous_latency() {
         state.sample(&params, [0.25, -0.125], 2, false),
         [0.25, -0.125]
     );
+}
+
+#[test]
+fn layout_changes_discard_partial_input_and_old_wet_without_callback_allocation() {
+    let params = RevoxParams::default();
+    params.status.set(ProcessingState::Ready);
+    let mut state = prepared(8);
+    state.channels = 1;
+    let lane = state.lane.as_ref().unwrap().clone();
+    // Include an old stereo packet too: switching back to a previously used
+    // layout must not make that region's wet audio eligible again.
+    for channels in [1, 2] {
+        let mut old = Packet::new(0, channels, 0.0);
+        old.len = PACKET_FRAMES;
+        old.samples.fill([0.9, -0.8]);
+        assert!(lane.output.push(old).is_ok());
+    }
+    assert_realtime_clean(|| {
+        let _section = truce::rt::RtSection::enter();
+        for _ in 0..4 {
+            assert_eq!(state.sample(&params, [0.1, 0.0], 1, false), [0.0; 2]);
+        }
+        for index in 0..9 {
+            let expected = if index < 8 { [0.0; 2] } else { [0.2, -0.3] };
+            assert_eq!(state.sample(&params, [0.2, -0.3], 2, false), expected);
+        }
+        assert_eq!(state.input.start, 4);
+        assert_eq!(state.input.len, 9);
+        assert_eq!(state.input.channels, 2);
+        for index in 0..9 {
+            let expected = if index < 8 { [0.0; 2] } else { [0.4, 0.0] };
+            assert_eq!(state.sample(&params, [0.4, 0.0], 1, false), expected);
+        }
+        assert_eq!(state.input.start, 13);
+        assert_eq!(state.input.len, 9);
+        assert_eq!(state.input.channels, 1);
+    });
+    assert_eq!(lane.output_floor.load(Ordering::Acquire), 13);
+}
+
+#[test]
+fn worker_selects_and_replaces_one_batch_for_mono_stereo_mono_without_mixing() {
+    use std::sync::{Mutex, atomic::AtomicUsize};
+
+    struct IdentityBatch {
+        channels: usize,
+        active: Arc<AtomicUsize>,
+    }
+    impl crate::stream::Renderer for IdentityBatch {
+        fn render_channels(
+            &mut self,
+            input: &[Vec<f32>],
+            _: f32,
+        ) -> Result<Vec<Vec<f32>>, heron_revox_dsp::DspError> {
+            assert_eq!(input.len(), self.channels);
+            Ok(input.to_vec())
+        }
+    }
+    impl Drop for IdentityBatch {
+        fn drop(&mut self) {
+            self.active.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
+
+    let params = RevoxParams::default();
+    let geometry = Geometry {
+        context: 32,
+        hop: 128,
+        overlap: 32,
+        latency: 256,
+    };
+    let loaded = Arc::new(Mutex::new(Vec::new()));
+    let active = Arc::new(AtomicUsize::new(0));
+    let worker_loaded = loaded.clone();
+    let worker_active = active.clone();
+    let worker = Worker::with_factory(
+        48_000.0,
+        geometry,
+        params.status.clone(),
+        4,
+        move |channels| {
+            assert_eq!(worker_active.fetch_add(1, Ordering::SeqCst), 0);
+            worker_loaded.lock().unwrap().push(channels);
+            Ok(IdentityBatch {
+                channels,
+                active: worker_active.clone(),
+            })
+        },
+    );
+    let mut state = prepared(geometry.latency);
+    state.lane = Some(worker.lane.clone());
+    state.worker = Some(worker);
+    for (channels, input) in [(1, [0.15, 0.0]), (2, [-0.2, 0.35]), (1, [0.4, 0.0])] {
+        for index in 0..768 {
+            let output = state.sample(&params, input, channels, true);
+            let expected = if index < geometry.latency {
+                [0.0; 2]
+            } else {
+                input
+            };
+            for channel in 0..2 {
+                assert!((output[channel] - expected[channel]).abs() < 1e-6);
+            }
+        }
+        assert_eq!(params.status.state(), ProcessingState::Ready);
+    }
+    drop(state);
+    assert_eq!(*loaded.lock().unwrap(), [1, 2, 1]);
+    assert_eq!(active.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn short_layout_regions_drain_retired_output_before_offline_input_backpressure() {
+    struct Double;
+    impl crate::stream::Renderer for Double {
+        fn render_channels(
+            &mut self,
+            input: &[Vec<f32>],
+            _: f32,
+        ) -> Result<Vec<Vec<f32>>, heron_revox_dsp::DspError> {
+            Ok(input
+                .iter()
+                .map(|channel| channel.iter().map(|sample| sample * 2.0).collect())
+                .collect())
+        }
+    }
+
+    let params = RevoxParams::default();
+    let geometry = Geometry {
+        context: 32,
+        hop: 128,
+        overlap: 32,
+        latency: 512,
+    };
+    let worker = Worker::with_factory(48_000.0, geometry, params.status.clone(), 4, |_| Ok(Double));
+    let lane = worker.lane.clone();
+    let mut state = prepared(geometry.latency);
+    state.lane = Some(lane.clone());
+    state.worker = Some(worker);
+
+    let (send, receive) = std::sync::mpsc::sync_channel(1);
+    let callback = thread::spawn(move || {
+        // Each region produces wet packets but ends before any audio is due.
+        // Without draining retired packets, both bounded queues fill and wait.
+        for region in 0..8 {
+            let (channels, input) = if region % 2 == 0 {
+                (1, [0.2, 0.0])
+            } else {
+                (2, [0.2, -0.3])
+            };
+            for _ in 0..384 {
+                assert_eq!(state.sample(&params, input, channels, true), [0.0; 2]);
+            }
+        }
+        // Keep the final stereo region alive. Its first wet packet must have
+        // survived preroll cleanup, and processing must resume at its latency.
+        for index in 384..768 {
+            let output = state.sample(&params, [0.2, -0.3], 2, true);
+            let expected = if index < geometry.latency {
+                [0.0; 2]
+            } else {
+                [0.4, -0.6]
+            };
+            for channel in 0..2 {
+                assert!((output[channel] - expected[channel]).abs() < 1e-6);
+            }
+        }
+        let _ = send.send(());
+    });
+    // Stop both wait loops even on failure so a regression cannot hang CI.
+    let completed = receive.recv_timeout(Duration::from_secs(3));
+    lane.stop.store(true, Ordering::Release);
+    callback.join().unwrap();
+    completed.expect("short layout regions deadlocked offline processing");
 }

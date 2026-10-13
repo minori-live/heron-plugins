@@ -1,11 +1,11 @@
 //! Context windows and overlap stitching, entirely owned by the background worker.
 
 use crate::{resampling::Resampler, worker::Packet};
-use heron_revox_dsp::{DspError, RevoxDsp};
+use heron_revox_dsp::{DspError, PLUGIN_WINDOW_SAMPLES, RevoxDsp};
 use std::collections::VecDeque;
 
 pub(crate) const MODEL_RATE: f64 = 48_000.0;
-pub(crate) const MODEL_WINDOW: usize = 101_760;
+pub(crate) const MODEL_WINDOW: usize = PLUGIN_WINDOW_SAMPLES;
 
 #[derive(Clone, Copy)]
 pub(crate) struct Geometry {
@@ -36,13 +36,20 @@ impl Geometry {
 }
 
 pub(crate) trait Renderer {
-    fn render(&mut self, input: &[f32], shift: f32) -> Result<Vec<f32>, DspError>;
+    fn render_channels(
+        &mut self,
+        input: &[Vec<f32>],
+        shift: f32,
+    ) -> Result<Vec<Vec<f32>>, DspError>;
 }
 
 impl Renderer for RevoxDsp {
-    fn render(&mut self, input: &[f32], shift: f32) -> Result<Vec<f32>, DspError> {
-        let analysis = self.analyze(input)?;
-        self.render(&analysis, shift, 42)
+    fn render_channels(
+        &mut self,
+        input: &[Vec<f32>],
+        shift: f32,
+    ) -> Result<Vec<Vec<f32>>, DspError> {
+        self.render_channels(input, shift, 42)
     }
 }
 
@@ -120,6 +127,7 @@ impl<R: Renderer> Stream<R> {
         }
         let mut output = vec![[0.0; 2]; geometry.hop];
         let mut tail = vec![[0.0; 2]; geometry.overlap];
+        let mut model_inputs = Vec::with_capacity(self.channels);
         for channel in 0..self.channels {
             let input: Vec<_> = (0..geometry.window())
                 .map(|index| {
@@ -133,8 +141,18 @@ impl<R: Renderer> Stream<R> {
                     }
                 })
                 .collect();
-            let model_input = self.to_model.convert(&input, MODEL_WINDOW);
-            let model_output = self.renderer.render(&model_input, self.last_shift)?;
+            model_inputs.push(self.to_model.convert(&input, MODEL_WINDOW));
+        }
+        let model_outputs = self
+            .renderer
+            .render_channels(&model_inputs, self.last_shift)?;
+        if model_outputs.len() != self.channels {
+            return Err(DspError::OutputShape {
+                model: "Revox",
+                output: "waveform batch",
+            });
+        }
+        for (channel, model_output) in model_outputs.iter().enumerate() {
             if model_output.len() != MODEL_WINDOW
                 || model_output.iter().any(|sample| !sample.is_finite())
             {
@@ -143,7 +161,7 @@ impl<R: Renderer> Stream<R> {
                     output: "waveform",
                 });
             }
-            let rendered = self.from_model.convert(&model_output, geometry.window());
+            let rendered = self.from_model.convert(model_output, geometry.window());
             for (index, frame) in output.iter_mut().enumerate() {
                 let value = rendered[geometry.context + index];
                 frame[channel] = if index < geometry.overlap {

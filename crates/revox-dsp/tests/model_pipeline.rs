@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use heron_revox_dsp::{RevoxDsp, runtime::OrtRuntime};
+use heron_revox_dsp::{DspError, RevoxDsp, features::FeatureError, runtime::OrtRuntime};
 
 #[test]
 #[ignore = "requires the pinned model files in target/revox"]
@@ -18,6 +18,10 @@ fn real_models_preserve_timing_pitch_masks_and_pitch_shift()
         root.join("fcpe.onnx"),
         root.join("models/revox.onnx"),
     )?;
+    assert!(matches!(
+        dsp.analyze(&[]),
+        Err(DspError::Features(FeatureError::EmptyInput))
+    ));
     // Rich, steady 220 Hz fixture checks pitch wiring independently of the
     // speech-trained vocoder's subjective treatment of synthetic timbre.
     let audio: Vec<f32> = (0..48_013)

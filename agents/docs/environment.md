@@ -213,15 +213,23 @@ checksum-verified MIT checkpoint with the development-only Python environment:
 uv venv --python 3.12 target/revox/venv
 uv pip install --python target/revox/venv/bin/python --require-hashes -r scripts/revox/requirements.lock
 target/revox/venv/bin/python scripts/revox/export_fcpe.py
+target/revox/venv/bin/python scripts/revox/prepare_vocoder.py
 ```
 
-On Windows use `target/revox/venv/Scripts/python.exe` for both Python paths.
+On Windows use `target/revox/venv/Scripts/python.exe` for the Python executable paths.
 `uv` is a development prerequisite for these export commands, not a plug-in
 runtime dependency. The exporter validates dynamic frame lengths against the
 original PyTorch implementation and writes `fcpe-export.json`, feature references,
-the upstream MIT license and the ONNX file under ignored `target/revox/`.
-Revox's weight hash is checked on both download and reuse. Model files are not
-downloaded by ordinary Cargo tests or at audio-processing time.
+the upstream MIT license and the ONNX file under ignored `target/revox/`. It also
+exports `fcpe-plugin.onnx`, with a fixed 213-frame window and symbolic `batch`
+dimension, plus `fcpe-plugin-export.json` with upstream parity evidence.
+`prepare_vocoder.py` verifies the original Revox hash and audits batch-sensitive
+axes before writing `models/revox-plugin.onnx` and its manifest. Only input/output
+shape annotations change: time is fixed at 212 frames / 101760 noise samples,
+and `batch` remains symbolic. Operations and weights are unchanged. Both graphs
+are checked for batch sizes 1 and 2. Original variable-length mono probe graphs
+remain available as `fcpe.onnx` and `models/revox.onnx`.
+Model files are not downloaded by ordinary Cargo tests or at audio-processing time.
 
 Run deterministic frontend, resampling, pitch alignment and backend-policy tests:
 
@@ -292,9 +300,10 @@ rc.14 prebuilt; it needs a compatible externally supplied ORT build
 ### Heron Revox plug-in
 
 Prepare the models above before running workspace Cargo checks: the plug-in's
-build script verifies their pinned SHA-256 values and embeds them in the native
-binary. The Test workflow exports the graphs once on Apple Silicon and supplies
-that same checked artifact to each platform's workspace checks.
+build script verifies the pinned SHA-256 values of `fcpe-plugin.onnx` and
+`models/revox-plugin.onnx` and embeds one copy of each graph in the native binary.
+The Test workflow prepares the graphs once on Apple Silicon and supplies that
+same checked artifact to each platform's workspace checks.
 
 ```sh
 export MACOSX_DEPLOYMENT_TARGET=14.2 # macOS
@@ -326,6 +335,11 @@ Supported host rates are 44.1/48/88.2/96/176.4/192 kHz, mono or stereo. Reported
 latency is 1.48 seconds plus 128 host samples. Revox targets track processing at
 this stage. It uses 160 ms output steps with model context and a 40 ms overlap;
 this is not an acceptance claim for transparent vocal seams or live monitoring.
+The worker fixes the ORT `batch` dimension to the active channel count: mono uses
+1, stereo uses 2. Channels from the same window are processed together, retaining
+independent features, pitch and excitation; channels are never summed. It does
+not wait for future windows to assemble a batch or add batching latency. Session
+preparation and warm-up occur on the worker after the layout is known.
 During loading, missed worker deadlines or failure, output is aligned dry audio
 and the footer shows the state. Failed processing is retried at host reactivation.
 An unsupported rate passes dry audio with zero latency. Offline bounce waits for
