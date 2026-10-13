@@ -40,12 +40,15 @@ jobs:
           mise exec uv@0.11.1 -- uv pip install --python target/revox/venv/bin/python --require-hashes -r scripts/revox/requirements.lock
           target/revox/venv/bin/python scripts/revox/export_fcpe.py
           node scripts/fetch-revox-model.ts
+          target/revox/venv/bin/python scripts/revox/prepare_vocoder.py
       - uses: actions/upload-artifact@v7
         with:
           name: revox-models
           path: |
             target/revox/fcpe.onnx
             target/revox/fcpe-export.json
+            target/revox/fcpe-plugin.onnx
+            target/revox/fcpe-plugin-export.json
             target/revox/fcpe-upstream/LICENSE
             target/revox/models/
           if-no-files-found: error

@@ -108,7 +108,9 @@ to `~/Library/Audio/Plug-Ins/VST3/` or the AU component to
 bundles use ad-hoc signing and are not notarized release downloads.
 
 The inference graphs are embedded; Python and model downloads are unnecessary
-on the playback machine. Each bundle includes the WebGPU Dawn library, FCPE's
+on the playback machine. Fixed processing windows automatically use batch 1 for
+mono or batch 2 for stereo, preserving each channel without additional batching
+delay. Each bundle includes the WebGPU Dawn library, FCPE's
 MIT license, the Revox model provenance using its GPL-3.0-only option, and the
 ONNX Runtime/Dawn license notices. AAX remains disabled by the suite's existing
 licensed-SDK and signing requirements.

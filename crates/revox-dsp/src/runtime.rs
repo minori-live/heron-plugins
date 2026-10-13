@@ -153,6 +153,24 @@ impl OrtRuntime {
             |builder| builder.commit_from_memory(model),
         )
     }
+
+    /// Specializes the plugin graph before provider partitioning and compilation.
+    /// The same override is applied if model loading takes the CPU fallback path.
+    pub(crate) fn create_session_from_memory_with_batch(
+        &self,
+        model: &[u8],
+        channels: usize,
+    ) -> Result<(Session, BackendReport), RuntimeError> {
+        load_with_policy(
+            platform_backends(),
+            || {
+                Ok(session_builder(&self.environment)?
+                    .with_dimension_override("batch", channels as i64)?)
+            },
+            |builder, backend| provider(backend)?.register(builder),
+            |builder| builder.commit_from_memory(model),
+        )
+    }
 }
 
 fn load_with_policy<T, B>(

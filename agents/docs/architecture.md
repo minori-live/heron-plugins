@@ -184,8 +184,8 @@ is part of this suite.
 
 ## Heron Revox
 
-`crates/revox-dsp` owns an experimental 48 kHz mono FCPE-to-Revox analysis and
-resynthesis pipeline. `plugins/heron-revox` adapts it to mono/stereo host audio
+`crates/revox-dsp` owns experimental 48 kHz FCPE-to-Revox analysis and
+resynthesis. `plugins/heron-revox` adapts it to mono/stereo host audio
 and a two-control native editor. Revox is an independent development bundle; the
 four existing suite release identities remain unchanged. A library-lifetime ORT
 environment is shared across instances; every instance owns its model sessions.
@@ -193,7 +193,7 @@ This strong environment owner supports reopening after all instances close. Load
 feature extraction, inference, synthesis and destruction run outside the audio
 callback; these operations allocate and may block. No Python runtime or helper
 process is used by the Rust DSP. Python is used only to export the upstream FCPE
-checkpoint and produce independent feature references during development.
+checkpoint, prepare model shapes and produce independent feature references.
 
 The pinned FCPE export maps time-major 128-band Mel features to 360 pitch-bin
 probabilities. Input is antialiased from 48 kHz to 16 kHz with a centered FIR;
@@ -242,8 +242,21 @@ Revox resets excitation phase between calls. The plug-in worker uses fixed
 join successive outputs. This reduces hard seams but does not restore the model's
 missing continuous excitation state or prove perceptually transparent vocals.
 Host rates 44.1/48/88.2/96/176.4/192 kHz are converted to/from the model's 48 kHz
-by a centered polyphase sinc on the worker. Stereo channels are synthesized
-separately; mono stays mono. No channels are summed.
+by a centered polyphase sinc on the worker. The embedded plugin graphs have fixed
+time dimensions (FCPE: 213 frames; Revox: 212 frames / 101760 noise samples) and
+one symbolic `batch` dimension. The worker creates sessions with ORT's dimension
+override set to the active channel count, 1 for mono or 2 for stereo, before
+warm-up. Stereo channels from the same window share a single batched inference;
+features, pitch, noise and reconstructed audio remain independent for each
+channel. No channels are summed, and no later time window is accumulated to
+assemble a batch. The frame step, context and reported latency are unchanged.
+Truce's reset configuration has no channel count, so the worker waits for the
+first audio packet to select and warm up exactly one pair of sessions. A change
+between mono and stereo retires those sessions on the worker and prepares the
+new shape. The callback starts a fresh delayed region and discards old-layout
+input, dry history and wet output; it also drains stale output during this new
+region's preroll so short layout changes cannot fill both queues and stall an
+offline bounce.
 
 The host receives a constant latency of 1.48 seconds plus 128 host samples,
 including a 320 ms inference allowance. This first version targets track
@@ -287,10 +300,16 @@ modern ORT execution-provider API is only published on its 2.0 release-candidate
 line. Keep the Rust wrapper and bundled native runtime resolution together in
 `Cargo.lock`. FCPE source/weight checksums and Python export dependencies are
 locked under `scripts/revox/`; Revox's immutable revision and model checksum are
-in `scripts/fetch-revox-model.ts`. We use the official FCPE MIT checkpoint and
+in `scripts/fetch-revox-model.ts`. `scripts/revox/prepare_vocoder.py` audits the
+pinned Revox graph's batch axes and specializes only its input/output shapes;
+all operations and weights remain unchanged. FCPE's plugin graph is exported from
+the same checkpoint with dynamic batch and fixed time, checked against upstream
+PyTorch for batches 1 and 2. The original variable-length mono graphs remain
+available for standalone probes. We use the official FCPE MIT checkpoint and
 Revox's GPL-3.0-only license option. Downloaded license texts remain beside the
-development model artifacts. The Revox build verifies both model hashes and
-embeds their bytes. Its independent bundle contains the model provenance/licenses
+development model artifacts. The Revox build verifies both prepared plugin model
+hashes and embeds one copy of each graph. Its independent bundle contains their
+preparation manifests, model provenance/licenses
 and ORT/Dawn notices; its Dawn library is copied into the bundle and linked by
 loader-relative path. No user-selected model path or Python runtime is needed.
 The macOS VST3 package uses an owned selective archive link with explicit VST3
