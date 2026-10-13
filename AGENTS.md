@@ -96,6 +96,7 @@ patches and their validation. Do not edit installed skills under `.agents/skills
 - [Native editor design system](agents/docs/design-system.md)
 - [Development environment](agents/docs/environment.md)
 - [CI and release operations](agents/docs/ci.md)
+- [Homebrew distribution](agents/docs/homebrew-distribution.md)
 - [Published artifact contract](agents/docs/artifacts.md)
 - [EQ implementation and verification](agents/docs/heron-eq.md)
 - [ADR lifecycle and template](agents/docs/adr/README.md)

@@ -68,6 +68,7 @@ Configure these repository secrets before a signed tag release:
 | `APPLE_API_ISSUER`         | API issuer ID                                                   |
 | `CODECOV_TOKEN`            | Coverage token, when needed by repository visibility/settings   |
 | `HERON_PLUGINS_SYNC_TOKEN` | Producer-only scoped token for Heron upgrade branches and PRs   |
+| `TAP_SYNC_TOKEN`           | Scoped token to notify `homebrew-tap` of stable releases        |
 
 The API key must be a complete, unencrypted PKCS#8 EC private key, including
 `BEGIN PRIVATE KEY` and `END PRIVATE KEY` lines. Raw PEM and strict standard
@@ -106,12 +107,19 @@ unexpected manual attachments. Publish only after the upload job has completed;
 do not publish during a rerun. See
 [GitHub's immutable release setting](https://docs.github.com/en/rest/repos/repos#enable-immutable-releases).
 
-Publishing a stable release runs `update-heron.yml` in this producer repository.
-Prereleases do not run it. Configure `HERON_PLUGINS_SYNC_TOKEN` only here as a
-fine-grained PAT owned by `minori-live`, selecting only `minori-live/heron` with
-Contents and Pull requests read/write permissions. No Heron secret, dispatch
-receiver, Actions permission or token forwarding is needed. The scoped PAT pushes
-the upgrade branch and creates/updates the PR so normal Heron CI runs.
+Publishing a stable release runs `update-heron.yml` in this producer repository
+and `notify-homebrew-tap.yml` for the macOS Cask. Prereleases do not run either.
+Configure `HERON_PLUGINS_SYNC_TOKEN` only here as a fine-grained PAT owned by
+`minori-live`, selecting only `minori-live/heron` with Contents and Pull requests
+read/write permissions. No Heron secret, dispatch receiver, Actions permission
+or token forwarding is needed. The scoped PAT pushes the upgrade branch and
+creates/updates the PR so normal Heron CI runs.
+
+`TAP_SYNC_TOKEN` is a separate fine-grained PAT whose only selected repository
+is `minori-live/homebrew-tap`, with Contents and Pull requests write. This
+repository uses it only to dispatch `heron-plugins-release-published`. The Tap
+owns version/digest validation, the Cask update and its release PR. See
+[Homebrew distribution](homebrew-distribution.md).
 
 The serialized job checks out the coordinator from producer main and the
 consumer from trusted Heron main. Heron main must already contain the artifact

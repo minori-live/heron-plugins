@@ -16,6 +16,7 @@ artifacts or benchmark results in this directory.
 - [Native editor design system](design-system.md)
 - [Development environment](environment.md)
 - [CI and release operations](ci.md)
+- [Homebrew distribution](homebrew-distribution.md)
 - [Published artifact contract](artifacts.md)
 - [EQ implementation and verification](heron-eq.md)
 - [Architecture decisions and their lifecycle](adr/README.md)

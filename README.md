@@ -18,9 +18,15 @@ Tools validation are ready.
 
 Download the runtime ZIP for your platform and format, then install the complete
 bundles from its `bundles/` directory in your DAW's plug-in location. macOS users
-can use the DMG's format folders and installation shortcuts. Quit and restart
-the DAW after installing. Heron bundles its own checksum-pinned VST3 release and
-upgrades it with application updates.
+can use the DMG's format folders and installation shortcuts, or install the
+signed Universal suite (VST3 and AUv2) with Homebrew:
+
+```sh
+brew install --cask minori-live/tap/heron-plugins
+```
+
+Quit and restart the DAW after installing. Heron bundles its own checksum-pinned
+VST3 release and upgrades it with application updates.
 
 ## Plug-in screenshots
 
@@ -69,9 +75,12 @@ Change `VERSION`, then run `pnpm version:sync`, `cargo check --workspace` and
 tagging. Tag pushes run all checks and create a draft GitHub Release. Publishing
 a stable release runs this repository's workflow to validate the release using
 Heron's artifact consumer and maintain one manually merged Heron upgrade PR.
-The scoped synchronization token lives only in this repository. If Heron main
-is not yet bootstrapped or an upgrade attempt fails, retry the workflow manually;
-the published plug-in release remains available.
+It also notifies [`minori-live/homebrew-tap`](https://github.com/minori-live/homebrew-tap)
+so the macOS Cask can track the Universal DMG. The scoped synchronization tokens
+live only in this repository. If Heron main is not yet bootstrapped or an upgrade
+attempt fails, retry the workflow manually; the published plug-in release remains
+available. Homebrew notification recovery is documented in
+[Homebrew distribution](agents/docs/homebrew-distribution.md).
 
 GitHub downloads contain runtime bundles and installers. Plug-ins do not
 publish symbols or integrate with Sentry.
