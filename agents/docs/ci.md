@@ -1,8 +1,12 @@
 # CI and release operations
 
-`CI` runs reusable Test and Build workflows for pushes to main and pull requests.
-The stable required check is `Gate`; it succeeds only when both workflows pass.
-The project has no website or Pages deployment.
+`CI` (`.github/workflows/ci.yml`) runs on pull requests, pushes to `main`, and
+manual `workflow_dispatch`. It calls the reusable Test and Build workflows, then
+reports their combined result through the stable `Gate` job. `Gate` succeeds only
+when both workflows succeed. Configure the `Gate` check (shown under the `CI`
+workflow) as the only required status check for pull requests so matrix job names
+can change without breaking branch protection. The project has no website or
+Pages deployment.
 
 Test runs release-tooling tests, Clippy, Rust tests with coverage, historical
 state compatibility and each plug-in's separate real-time allocation checks on

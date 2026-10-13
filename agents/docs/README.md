@@ -48,13 +48,20 @@ Apply the documents by responsibility:
 4. Accepted ADRs preserve durable decisions. CI operations and the artifact
    contract define release gates and producer/consumer compatibility.
 
-A proposed ADR is not authority. When an accepted ADR changes a durable
-decision, update its owning current-state document in the same change. If an
-accepted ADR and a current document disagree, reconcile them before shipping.
-Accepted architecture is distinct from completed implementation.
+A proposed ADR is not authority. Maintain current rules in the owning documents
+as part of authorized work. When an accepted ADR changes a durable decision,
+update its owning current-state document in the same change. Historical
+implementation details in an ADR do not independently freeze the current design;
+clarify misleading details with a dated amendment and a link as described in
+[ADR governance](adr/README.md). Genuine conflicts about durable commitments
+require resolution within the maintainer's direction; neither a documentation
+edit nor an agent-written status label authorizes a change outside the task.
+Raise unresolved substantive conflicts and continue unaffected work. ADR
+creation is not a routine approval stage. Accepted architecture is distinct
+from completed implementation.
 
 Mechanical checks belong in `mise run check` or the appropriate narrower command.
 Rules without an implemented mechanical check still require review; do not claim
-CI enforces them. Judgment-based rules and evidence belong in the pull request.
-Exceptions and deferred correctness work require a linked issue, without a
-separate waiver process.
+CI enforces them. Judgment-based rules are recorded in the pull-request
+governance review. Exceptions and deferred correctness work require a linked
+issue; no separate waiver process is required at the current project scale.
