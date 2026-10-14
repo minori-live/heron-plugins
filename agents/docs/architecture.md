@@ -138,7 +138,8 @@ them only after equivalent upstream behavior passes the relevant native checks.
 - Define overflow, dropped/coalesced requests and stale-generation outcomes.
   Diagnostics use bounded counters/state and are read outside processing.
 - Never hold a callback-visible lock across host, platform, editor or filesystem
-  calls. Changing thread ownership or real-time assumptions requires an ADR.
+  calls. Document changes to thread ownership and callback guarantees here;
+  follow [maintainer-directed ADR governance](adr/README.md) for separate records.
 
 The EQ audio path captures bounded samples/metadata; FFT and display work occur
 outside processing. New processors are prepared off the callback and handed
