@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     embed(
         &models.join("models/revox-plugin.onnx"),
-        "16e620c5a634530d3dbb0ec5562c6cf4ff16bec45f08c5b9c0d10220d6fcff87",
+        "f5ee3af5833e5f9ffdb09aad24df2d04cffe8f3e108559d118ebf44ab774379e",
         "HERON_REVOX_VOCODER_MODEL",
     )?;
     Ok(())

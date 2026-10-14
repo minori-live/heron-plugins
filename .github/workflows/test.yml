@@ -66,7 +66,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           mise install uv@0.11.1
-          mise exec uv@0.11.1 -- uv venv --python 3.12.13 target/revox/runtime-venv
+          mise exec uv@0.11.1 -- uv venv --clear --python 3.12.13 target/revox/runtime-venv
           cygpath -w "$PWD/target/revox/runtime-venv/Scripts" >> "$GITHUB_PATH"
       - name: Prepare pinned CPU runtime for test executables
         run: node scripts/revox-runtime.ts

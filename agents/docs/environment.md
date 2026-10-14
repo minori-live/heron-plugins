@@ -249,9 +249,11 @@ the upstream MIT license and the ONNX file under ignored `target/revox/`. It als
 exports `fcpe-plugin.onnx`, with a fixed 213-frame window and symbolic `batch`
 dimension, plus `fcpe-plugin-export.json` with upstream parity evidence.
 `prepare_vocoder.py` verifies the original Revox hash and audits batch-sensitive
-axes before writing `models/revox-plugin.onnx` and its manifest. Only input/output
-shape annotations change: time is fixed at 212 frames / 101760 noise samples,
-and `batch` remains symbolic. Operations and weights are unchanged. Both graphs
+axes before writing `models/revox-plugin.onnx` and its manifest. Time is fixed at
+212 frames / 101760 noise samples and `batch` remains symbolic. The prepared
+graph also adds a float32 `phase_cycles` input with shape `[batch, 1]`, added
+after the original zero-origin source-phase calculation. Learned weights remain
+unchanged; the plug-in supplies phase continuity explicitly. Both graphs
 are checked for batch sizes 1 and 2. Original variable-length mono probe graphs
 remain available as `fcpe.onnx` and `models/revox.onnx`.
 Model files are not downloaded by ordinary Cargo tests or at audio-processing time.
@@ -337,6 +339,12 @@ fallback. AU builds also pass registration/version checks and `auval` alongside
 the other four components. These gates establish native inference behavior for
 each produced archive; compilation alone is insufficient.
 
+Reset validation also renders real-time stereo silence followed by a harmonic
+tone, then repeats the input after a same-rate host reset. Check fixed reported
+latency, finite processed output and the combined pitch shift in both regions.
+The reset must retain loaded same-layout sessions while retiring old-generation
+audio and status; silence-to-tone input must not trigger model unavailability.
+
 The editor has two controls: Semitones (-12..12, step 1) and Cents (-100..100,
 step 1), combined additively. Both default to zero and still resynthesize audio.
 Double-click a dial or click its readout for numeric input, Command/Control-click
@@ -353,10 +361,32 @@ The worker fixes the ORT `batch` dimension to the active channel count: mono use
 independent features, pitch and excitation; channels are never summed. It does
 not wait for future windows to assemble a batch or add batching latency. Session
 preparation and warm-up occur on the worker after the layout is known.
-During loading, missed worker deadlines or failure, output is aligned dry audio
-and the footer shows the state. Failed processing is retried at host reactivation.
-An unsupported rate passes dry audio with zero latency. Offline bounce waits for
-worker output; real-time and buffered playback never wait for inference.
+Same-rate host resets retain a live worker and its loaded sessions when the
+channel layout stays the same. Packets carry processing generations; the worker
+retires old-generation input/output and starts a fresh timeline with cleared
+overlap, pitch, phase and noise histories. Old-generation publication stops
+waiting for output queue capacity, and atomically correlated status prevents
+its completion or error from changing the new generation's state. Model
+preparation and warm-up repeat only for a changed channel layout/rate or recovery
+from a genuine worker failure.
+Successive windows reuse accepted unshifted pitch, confidence, voicing and
+validity for the historical prefix, including the overlap and its interpolation
+boundary. The current shift applies to the cached unshifted pitch. Each channel
+carries source phase across output steps, anchored at the crop boundary even
+when the shift changes, and derives deterministic excitation noise from absolute
+model-sample positions. Continuity histories advance after successful synthesis
+and reset with a new contiguous or channel-layout region. Whole-window FCPE
+normalization and context-dependent Revox synthesis remain; this does not establish
+transparent vocal seams or equivalence to whole-input rendering.
+Real-time, buffered and offline processing all retain queued input and wait for
+matching worker output in order, including during loading or slow inference.
+Full queues apply backpressure without dropping current-region audio. Revox
+neither reports overload nor switches to dry audio or bypass; the DAW owns audio
+deadlines and buffer-size adjustments. Output is zero during the reported latency
+preroll. Worker initialization or inference failure outputs silence and is retried
+at host reactivation/reset. An unsupported rate outputs silence with zero latency
+until the host configures a supported rate. The footer reports loading, processing,
+failure or unsupported rate.
 
 ## Dependency and suite version changes
 

@@ -2,12 +2,18 @@
 //! Models are the same pinned assets prepared for every workspace/CI build.
 use std::{error::Error, fs, path::Path};
 
-use heron_revox_dsp::{Analysis, DspError, PLUGIN_WINDOW_SAMPLES, RevoxDsp, runtime::OrtRuntime};
+use heron_revox_dsp::{
+    Analysis, DspError, PLUGIN_HOP_SAMPLES, PLUGIN_WINDOW_SAMPLES, RevoxDsp, runtime::OrtRuntime,
+};
 
 fn harmonic(hz: f64) -> Vec<f32> {
+    harmonic_at(hz, 0)
+}
+
+fn harmonic_at(hz: f64, start: usize) -> Vec<f32> {
     (0..PLUGIN_WINDOW_SAMPLES)
         .map(|sample| {
-            let phase = std::f64::consts::TAU * hz * sample as f64 / 48_000.0;
+            let phase = std::f64::consts::TAU * hz * (start + sample) as f64 / 48_000.0;
             (0.15 * phase.sin() + 0.07 * (2.0 * phase).sin() + 0.04 * (3.0 * phase).sin()) as f32
         })
         .collect()
@@ -107,5 +113,31 @@ fn fixed_channel_batch_matches_independent_mono_and_rejects_wrong_shapes()
     let one_silent = stereo.render_channels(&[left, silence], 3.5, 42)?;
     same_audio(&left_output, &one_silent[0]);
     same_audio(&silent_output, &one_silent[1]);
+
+    // Non-integral cycles per hop exercise each channel's accepted pitch and
+    // phase carry on the second and third windows, beyond stateless batching.
+    let mut independent = [Vec::with_capacity(3), Vec::with_capacity(3)];
+    for (hz, windows) in [220.0, 330.0].into_iter().zip(&mut independent) {
+        mono.reset_stream();
+        for window in 0..3 {
+            let mut output = mono.render_stream_channels(
+                &[harmonic_at(hz, window * PLUGIN_HOP_SAMPLES)],
+                3.5,
+                42,
+            )?;
+            windows.push(output.remove(0));
+        }
+    }
+    stereo.reset_stream();
+    for (window, (left, right)) in independent[0].iter().zip(&independent[1]).enumerate() {
+        let start = window * PLUGIN_HOP_SAMPLES;
+        let output = stereo.render_stream_channels(
+            &[harmonic_at(220.0, start), harmonic_at(330.0, start)],
+            3.5,
+            42,
+        )?;
+        same_audio(left, &output[0]);
+        same_audio(right, &output[1]);
+    }
     Ok(())
 }

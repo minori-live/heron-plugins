@@ -92,10 +92,21 @@ by a named feature or runtime owner, rather than generic `types`, `helpers` or
 
 ## Real-time and thread boundaries
 
-- The audio callback MUST NOT allocate or free heap resources, block, log,
+- The audio callback MUST NOT allocate or free heap resources, log,
   access the filesystem/network, perform UI work or acquire a lock that a
   control, host, editor, worker or filesystem operation can hold.
-- Work per audio block and all control/publication queues MUST be bounded.
+- Gain, EQ, Sine and Metronome callbacks MUST NOT wait, and their work per audio
+  block MUST be bounded.
+- Revox MUST retain audio and wait for worker queue capacity and matching
+  processed audio in every host process mode, as specified in
+  [architecture](architecture.md#heron-revox). Model loading, inference and
+  allocation remain on its worker; the DAW owns deadline handling. Same-rate
+  resets MUST retire the previous processing generation without replacing a live
+  worker or reloading its same-layout sessions. Audio packets and atomically
+  correlated status MUST reject retired generations. Reset timeline and stream
+  histories; obsolete output publication must yield to new input rather than
+  waiting on a queue the new generation cannot consume.
+- All control/publication queues MUST have bounded memory.
   Define capacities and the policy for overflow, stale generations and dropped
   work; expose a bounded state or observation rather than silently losing an
   operation whose outcome matters.
