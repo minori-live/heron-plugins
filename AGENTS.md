@@ -17,10 +17,11 @@ signing prerequisites described in `agents/docs/ci.md`.
   changes require an explicit compatibility decision and regression evidence.
 - Heron Metronome is a MIDI-triggered click instrument. Heron's tempo/count-in
   scheduler remains owned by Heron; other DAWs send accent note 84 and beat note 72.
-- Keep allocation, filesystem/network access, UI work and blocking synchronization
-  out of audio callbacks. Revox alone waits for worker capacity and matching
-  processed audio in every host process mode; it never drops audio or bypasses
-  processing to meet a deadline. Recoverable failures use typed `Result` values;
+- Keep allocation, filesystem/network access and UI work out of audio callbacks.
+  Gain, EQ, Sine and Metronome callbacks must not wait. Revox retains audio and
+  waits for worker capacity and matching processed audio in every host process
+  mode; it never drops audio or bypasses processing to meet a deadline.
+  Recoverable failures use typed `Result` values;
   never unwind through plugin ABI, platform or audio callbacks.
 - GitHub artifacts and releases contain runtime bundles and installers only.
   Plug-ins do not publish symbol archives or integrate with Sentry. Future

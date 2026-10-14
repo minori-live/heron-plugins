@@ -122,18 +122,19 @@ them only after equivalent upstream behavior passes the relevant native checks.
 
 ## Real-time boundary
 
-- Keep callback work bounded, allocation-free and free of deallocation that can
-  invoke an allocator or destroy a heap-owning processor.
+- Keep callbacks allocation-free and free of deallocation that can invoke an
+  allocator or destroy a heap-owning processor. Gain, EQ, Sine and Metronome
+  callbacks have bounded work and never wait.
 - Keep filesystem/network access, UI work, font loading, clipboard access,
-  serialization, logging and blocking synchronization off audio callbacks.
-  Revox's callback alone waits for worker queue capacity and matching processed
+  serialization and logging off audio callbacks.
+  Revox retains audio and waits for worker queue capacity and matching processed
   audio in every host process mode. Its fixed-capacity queues retain bounded
   memory; its callback duration follows the worker's processing time.
 - Use fixed-capacity state, atomic snapshots or bounded non-blocking handoffs
   where processing meets parameters, events, telemetry and preparation.
 - Allocate voices, histories and processing capacity at an appropriate
   non-real-time preparation boundary. External event/block counts do not
-  authorize unbounded processing, growth or string lookup in the callback.
+  authorize callback memory growth or string lookup.
 - Define overflow, dropped/coalesced requests and stale-generation outcomes.
   Diagnostics use bounded counters/state and are read outside processing.
 - Never hold a callback-visible lock across host, platform, editor or filesystem
