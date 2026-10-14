@@ -1,6 +1,7 @@
 //! Bundled ONNX Runtime, ordered execution providers and explicit CPU recovery.
 
 use std::{
+    io::Write,
     path::Path,
     sync::{Arc, OnceLock},
 };
@@ -295,6 +296,7 @@ fn attempt_chain<T, B>(
 }
 
 fn session_builder(environment: &Environment) -> ort::Result<SessionBuilder> {
+    let intra_threads = diagnostic_intra_threads()?;
     Ok(Session::builder(environment)?
         .with_no_environment_execution_providers()?
         // Override ort's automatic NPU policy; our explicit chain owns selection.
@@ -302,12 +304,46 @@ fn session_builder(environment: &Environment) -> ort::Result<SessionBuilder> {
         .with_optimization_level(GraphOptimizationLevel::All)?
         // Bound CPU work per session. Two threads sustain the measured stereo
         // window on the release validation host; one exceeded its 160 ms hop.
-        .with_intra_threads(2)?
+        .with_intra_threads(intra_threads)?
         .with_parallel_execution(false)?
         .with_intra_op_spinning(false)?
         .with_inter_op_spinning(false)?
         // Inputs vary at the final chunk; DirectML also requires this disabled.
         .with_memory_pattern(false)?)
+}
+
+fn diagnostic_intra_threads() -> ort::Result<usize> {
+    // Session construction runs on the non-audio caller/worker. The override is
+    // intentionally unavailable unless this process explicitly opts into diagnostics.
+    if std::env::var_os("HERON_REVOX_DIAGNOSTICS").as_deref() != Some(std::ffi::OsStr::new("1")) {
+        return Ok(2);
+    }
+    let threads = match std::env::var_os("HERON_REVOX_DIAGNOSTIC_INTRA_THREADS") {
+        None => 2,
+        Some(value) => match value.to_str() {
+            Some("1") => 1,
+            Some("2") => 2,
+            Some("3") => 3,
+            Some("4") => 4,
+            _ => {
+                let message = "HERON_REVOX_DIAGNOSTIC_INTRA_THREADS must be exactly 1, 2, 3 or 4";
+                let _ = writeln!(
+                    std::io::stderr().lock(),
+                    "REVOX_RUNTIME event=session_config_rejected error={message}"
+                );
+                return Err(ort::Error::new_with_code(
+                    ort::ErrorCode::InvalidArgument,
+                    message,
+                ));
+            }
+        },
+    };
+    // Reporting failures must not unwind or change the selected session policy.
+    let _ = writeln!(
+        std::io::stderr().lock(),
+        "REVOX_RUNTIME event=session_config intra_threads={threads} diagnostics=true"
+    );
+    Ok(threads)
 }
 
 fn platform_backends() -> &'static [Backend] {
