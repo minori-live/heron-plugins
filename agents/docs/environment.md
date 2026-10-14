@@ -339,6 +339,12 @@ fallback. AU builds also pass registration/version checks and `auval` alongside
 the other four components. These gates establish native inference behavior for
 each produced archive; compilation alone is insufficient.
 
+Reset validation also renders real-time stereo silence followed by a harmonic
+tone, then repeats the input after a same-rate host reset. Check fixed reported
+latency, finite processed output and the combined pitch shift in both regions.
+The reset must retain loaded same-layout sessions while retiring old-generation
+audio and status; silence-to-tone input must not trigger model unavailability.
+
 The editor has two controls: Semitones (-12..12, step 1) and Cents (-100..100,
 step 1), combined additively. Both default to zero and still resynthesize audio.
 Double-click a dial or click its readout for numeric input, Command/Control-click
@@ -355,6 +361,14 @@ The worker fixes the ORT `batch` dimension to the active channel count: mono use
 independent features, pitch and excitation; channels are never summed. It does
 not wait for future windows to assemble a batch or add batching latency. Session
 preparation and warm-up occur on the worker after the layout is known.
+Same-rate host resets retain a live worker and its loaded sessions when the
+channel layout stays the same. Packets carry processing generations; the worker
+retires old-generation input/output and starts a fresh timeline with cleared
+overlap, pitch, phase and noise histories. Old-generation publication stops
+waiting for output queue capacity, and atomically correlated status prevents
+its completion or error from changing the new generation's state. Model
+preparation and warm-up repeat only for a changed channel layout/rate or recovery
+from a genuine worker failure.
 Successive windows reuse accepted unshifted pitch, confidence, voicing and
 validity for the historical prefix, including the overlap and its interpolation
 boundary. The current shift applies to the cached unshifted pitch. Each channel

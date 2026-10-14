@@ -33,6 +33,8 @@ fn prepared<R: Renderer + 'static>(
         lane: Some(worker.lane.clone()),
         worker: Some(worker),
         latency,
+        sample_rate: 48_000.0,
+        generation: params.status.generation(),
         ..RevoxDspState::default()
     }
 }

@@ -21,6 +21,8 @@ pub struct RevoxDspState {
     input: Packet,
     output: Option<Packet>,
     latency: usize,
+    sample_rate: f64,
+    generation: u64,
 }
 
 impl Default for RevoxDspState {
@@ -34,29 +36,47 @@ impl Default for RevoxDspState {
             input: Packet::new(0, 0, 0.0),
             output: None,
             latency: 0,
+            sample_rate: 0.0,
+            generation: 0,
         }
     }
 }
 
 impl RevoxDspState {
     pub(crate) fn reset(&mut self, params: &RevoxParams, sample_rate: f64) {
-        self.worker = None;
-        self.lane = None;
+        let reuse = self.sample_rate == sample_rate
+            && params.status.state() != ProcessingState::Failed
+            && self.worker.as_ref().is_some_and(Worker::is_running)
+            && self
+                .lane
+                .as_ref()
+                .is_some_and(|lane| !lane.stop.load(Ordering::Acquire));
+        if !reuse {
+            self.worker = None;
+            self.lane = None;
+        }
         self.position = 0;
         self.channels = 0;
         self.region_start = 0;
         self.input = Packet::new(0, 0, 0.0);
         self.output = None;
+        self.sample_rate = sample_rate;
         let Some(geometry) = Geometry::new(sample_rate) else {
             self.latency = 0;
-            params.status.configure(sample_rate, 0);
+            self.generation = params.status.configure(sample_rate, 0);
             params.status.set(ProcessingState::UnsupportedRate);
             return;
         };
         self.latency = geometry.latency;
-        params.status.configure(sample_rate, self.latency as u32);
-        self.worker = Worker::start(sample_rate, geometry, params.status.clone());
-        self.lane = self.worker.as_ref().map(|worker| worker.lane.clone());
+        self.generation = params.status.configure(sample_rate, self.latency as u32);
+        if reuse {
+            if let Some(lane) = &self.lane {
+                lane.generation.store(self.generation, Ordering::Release);
+            }
+        } else {
+            self.worker = Worker::start(sample_rate, geometry, params.status.clone());
+            self.lane = self.worker.as_ref().map(|worker| worker.lane.clone());
+        }
     }
 
     pub fn latency_samples(&self) -> u32 {
@@ -86,6 +106,12 @@ impl RevoxDspState {
             return [0.0; 2];
         }
         if self.channels != channels {
+            if self.channels != 0 {
+                self.generation = params.status.begin_region();
+                if let Some(lane) = &self.lane {
+                    lane.generation.store(self.generation, Ordering::Release);
+                }
+            }
             self.channels = channels;
             self.region_start = self.position;
             self.input = Packet::new(self.position, channels, 0.0);
@@ -101,6 +127,7 @@ impl RevoxDspState {
             let _ = self.take_wet(self.region_start);
         }
         if self.input.len == 0 {
+            self.input.generation = self.generation;
             self.input.start = self.position;
             self.input.channels = channels;
             self.input.shift = params.pitch_shift();
@@ -161,7 +188,9 @@ impl RevoxDspState {
         {
             return true;
         }
-        params.status.set(ProcessingState::Failed);
+        let _ = params
+            .status
+            .set_for_generation(self.generation, ProcessingState::Failed);
         false
     }
 
@@ -172,7 +201,8 @@ impl RevoxDspState {
                 self.output = lane.output.pop();
             }
             if self.output.as_ref().is_some_and(|packet| {
-                packet.start + packet.len as u64 <= position
+                packet.generation != self.generation
+                    || packet.start + packet.len as u64 <= position
                     || packet.start < self.region_start
                     || packet.channels != self.channels
             }) {
@@ -193,3 +223,6 @@ impl RevoxDspState {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod reset_tests;

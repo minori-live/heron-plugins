@@ -21,6 +21,11 @@ signing prerequisites described in `agents/docs/ci.md`.
   Gain, EQ, Sine and Metronome callbacks must not wait. Revox retains audio and
   waits for worker capacity and matching processed audio in every host process
   mode; it never drops audio or bypasses processing to meet a deadline.
+  Same-rate host resets start a new processing generation while retaining the
+  live worker and loaded sessions for the same channel layout. Reject retired
+  generations' audio and status publications; reset stream histories without
+  repeating model preparation unless the layout/rate changes or a failed worker
+  needs recovery.
   Recoverable failures use typed `Result` values;
   never unwind through plugin ABI, platform or audio callbacks.
 - GitHub artifacts and releases contain runtime bundles and installers only.

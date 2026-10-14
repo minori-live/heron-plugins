@@ -123,6 +123,19 @@ impl<R: Renderer> Stream<R> {
         self.received_end = packet.start + packet.len as u64;
     }
 
+    /// Reset the host timeline without recreating this layout's model sessions.
+    pub fn reset(&mut self) {
+        self.renderer.reset_stream();
+        self.history.clear();
+        self.controls.clear();
+        self.history_start = 0;
+        self.received_end = 0;
+        self.next_start = 0;
+        self.channels = 0;
+        self.last_shift = 0.0;
+        self.tail = None;
+    }
+
     pub fn render_ready(&mut self) -> Result<Option<Rendered>, DspError> {
         let geometry = self.geometry;
         let required_end =

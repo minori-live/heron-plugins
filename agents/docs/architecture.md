@@ -295,14 +295,27 @@ input and wet output; it also drains stale output during this new region's
 preroll so short layout changes cannot fill both queues and stall an audio
 callback.
 
+A same-rate host reset advances the processing generation and retains a live
+worker. If the next packet has the same channel layout, its loaded model sessions
+remain available without repeated preparation or warm-up. The new generation
+resets the input/output timeline, overlap, accepted pitch, source phase and noise
+position. Old-generation input and output are retired, and an old-generation
+output publisher stops waiting for queue space so the worker can consume new
+input. A changed channel layout prepares new sessions on that worker; a changed
+sample rate or reset of a genuinely failed worker replaces the worker and repeats
+model preparation off the audio callback.
+
 The host receives a constant latency of 1.48 seconds plus 128 host samples,
 including a 320 ms inference allowance. This first version targets track
 processing, not low-latency live monitoring. The callback sends/receives fixed
 128-frame stereo packets through two preallocated 2048-packet queues. Packets
-carry absolute input sample positions; stale output is discarded, future output
-is held until its matching delayed position, and current-region input is never
-dropped. Pitch settings are captured with input packets and selected at the
-output window's starting timestamp, quantized to the 160 ms processing step.
+carry a processing generation and absolute input sample positions; stale output
+is discarded, future output is held until its matching delayed position, and
+current-generation input is never dropped. Pitch settings are captured with input
+packets and selected at the output window's starting timestamp, quantized to the
+160 ms processing step. Generation and status are atomically correlated so an
+obsolete job's completion or error cannot overwrite the current generation's
+state.
 
 Real-time, buffered and offline callbacks all preserve queued input and wait for
 the same worker's matching output in order. A full queue applies backpressure;
@@ -314,8 +327,8 @@ The callback never allocates, loads a model or runs ORT. The editor distinguishe
 loading, processing, failure and unsupported sample rate. Worker initialization
 or inference failure stays failed and outputs silence until host
 reactivation/reset. Unsupported rates have zero latency and output silence until
-the host configures a supported rate. Reset/destruction stop and join the previous
-worker off the realtime callback.
+the host configures a supported rate. Worker replacement and destruction stop
+and join the previous worker off the realtime callback.
 
 Truce 6.3 prepares DSP at VST3 activation, so the initial latency query must follow
 `setActive(true)`. Heron's VST3 host already uses that order; hosts that only query
