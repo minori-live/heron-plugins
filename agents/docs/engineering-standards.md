@@ -95,7 +95,12 @@ by a named feature or runtime owner, rather than generic `types`, `helpers` or
 - The audio callback MUST NOT allocate or free heap resources, block, log,
   access the filesystem/network, perform UI work or acquire a lock that a
   control, host, editor, worker or filesystem operation can hold.
+  Revox's callback may wait for worker queue capacity and matching processed
+  audio in every host process mode, as specified in
+  [architecture](architecture.md#heron-revox). This exception does not permit
+  model loading, inference or allocation in its callback.
 - Work per audio block and all control/publication queues MUST be bounded.
+  Revox's worker waits are the sole exception to bounded callback time.
   Define capacities and the policy for overflow, stale generations and dropped
   work; expose a bounded state or observation rather than silently losing an
   operation whose outcome matters.

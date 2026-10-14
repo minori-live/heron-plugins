@@ -1,6 +1,8 @@
 use super::*;
 use truce::core::PluginRuntime;
 
+mod window_continuity;
+
 #[test]
 fn independent_coarse_and_fine_parameters_combine_without_clipping_the_endpoints() {
     let params = RevoxParams::default();

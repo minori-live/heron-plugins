@@ -1,7 +1,10 @@
 //! Context windows and overlap stitching, entirely owned by the background worker.
 
 use crate::{resampling::Resampler, worker::Packet};
-use heron_revox_dsp::{DspError, PLUGIN_WINDOW_SAMPLES, RevoxDsp};
+use heron_revox_dsp::{
+    DspError, PLUGIN_CONTEXT_SAMPLES, PLUGIN_HOP_SAMPLES, PLUGIN_OVERLAP_SAMPLES,
+    PLUGIN_WINDOW_SAMPLES, RevoxDsp,
+};
 use std::collections::VecDeque;
 
 pub(crate) const MODEL_RATE: f64 = 48_000.0;
@@ -20,13 +23,15 @@ impl Geometry {
         if ![44_100.0, 48_000.0, 88_200.0, 96_000.0, 176_400.0, 192_000.0].contains(&sample_rate) {
             return None;
         }
-        let samples = |seconds: f64| (seconds * sample_rate).round() as usize;
+        let samples = |model_samples: usize| {
+            (model_samples as f64 * sample_rate / MODEL_RATE).round() as usize
+        };
         Some(Self {
-            context: samples(0.96),
-            hop: samples(0.16),
-            overlap: samples(0.04),
+            context: samples(PLUGIN_CONTEXT_SAMPLES),
+            hop: samples(PLUGIN_HOP_SAMPLES),
+            overlap: samples(PLUGIN_OVERLAP_SAMPLES),
             // 1.16 s of future input plus 320 ms inference scheduling allowance.
-            latency: samples(1.48) + crate::worker::PACKET_FRAMES,
+            latency: (1.48 * sample_rate).round() as usize + crate::worker::PACKET_FRAMES,
         })
     }
 
@@ -36,6 +41,8 @@ impl Geometry {
 }
 
 pub(crate) trait Renderer {
+    fn reset_stream(&mut self) {}
+
     fn render_channels(
         &mut self,
         input: &[Vec<f32>],
@@ -44,12 +51,16 @@ pub(crate) trait Renderer {
 }
 
 impl Renderer for RevoxDsp {
+    fn reset_stream(&mut self) {
+        RevoxDsp::reset_stream(self);
+    }
+
     fn render_channels(
         &mut self,
         input: &[Vec<f32>],
         shift: f32,
     ) -> Result<Vec<Vec<f32>>, DspError> {
-        self.render_channels(input, shift, 42)
+        self.render_stream_channels(input, shift, 42)
     }
 }
 
@@ -74,7 +85,9 @@ pub(crate) struct Stream<R> {
 }
 
 impl<R: Renderer> Stream<R> {
-    pub fn new(renderer: R, sample_rate: f64, geometry: Geometry) -> Self {
+    pub fn new(mut renderer: R, sample_rate: f64, geometry: Geometry) -> Self {
+        // Warmup uses the same renderer but does not belong to the audio timeline.
+        renderer.reset_stream();
         Self {
             renderer,
             geometry,
@@ -95,8 +108,9 @@ impl<R: Renderer> Stream<R> {
         if packet.start != self.received_end
             || (self.channels != 0 && self.channels != packet.channels)
         {
-            // A missed input packet starts a new contiguous region. Never bridge
-            // a dropped interval with an old waveform or stale model context.
+            // A layout change discards a partial input packet and starts a new
+            // region. Never bridge that boundary with old waveform or controls.
+            self.renderer.reset_stream();
             self.history.clear();
             self.controls.clear();
             self.history_start = packet.start;

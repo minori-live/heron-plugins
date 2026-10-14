@@ -144,22 +144,65 @@ fn pitch_automation_uses_the_output_window_start_and_crossfades_its_boundary() {
 }
 
 #[test]
-fn a_missing_packet_starts_a_new_region_without_previous_tail_or_controls() {
+fn a_layout_boundary_starts_a_new_region_without_previous_tail_or_controls() {
     let mut stream = Stream::new(ShiftGain, MODEL_RATE, geometry());
     stream.push(&packet(0, 2, 1.0, |_| [0.2, -0.1]));
     stream.push(&packet(128, 2, 1.0, |_| [0.2, -0.1]));
     let previous = stream.render_ready().unwrap().unwrap();
     assert_eq!(previous.samples[0], [0.4, -0.2]);
 
-    stream.push(&packet(1000, 2, 0.0, |_| [-0.3, 0.7]));
+    stream.push(&packet(1000, 1, 0.0, |_| [-0.3, 0.0]));
     assert!(stream.render_ready().unwrap().is_none());
-    stream.push(&packet(1128, 2, 0.0, |_| [-0.3, 0.7]));
+    stream.push(&packet(1128, 1, 0.0, |_| [-0.3, 0.0]));
     let restarted = stream.render_ready().unwrap().unwrap();
     assert_eq!(restarted.start, 1000);
     assert!(
         restarted
             .samples
             .iter()
-            .all(|sample| *sample == [-0.3, 0.7])
+            .all(|sample| *sample == [-0.3, 0.0])
+    );
+}
+
+#[test]
+fn new_stream_and_layout_region_discard_renderer_history_from_warmup_and_old_audio() {
+    struct HistoryGain(f32);
+    impl Renderer for HistoryGain {
+        fn reset_stream(&mut self) {
+            self.0 = 2.0;
+        }
+
+        fn render_channels(
+            &mut self,
+            input: &[Vec<f32>],
+            _: f32,
+        ) -> Result<Vec<Vec<f32>>, DspError> {
+            let gain = self.0;
+            self.0 += 1.0;
+            Ok(input
+                .iter()
+                .map(|channel| channel.iter().map(|sample| sample * gain).collect())
+                .collect())
+        }
+    }
+
+    let mut stream = Stream::new(HistoryGain(99.0), MODEL_RATE, geometry());
+    for start in [0, 128] {
+        stream.push(&packet(start, 2, 0.0, |_| [0.2, -0.1]));
+    }
+    let first = stream.render_ready().unwrap().unwrap();
+    assert!(first.samples.iter().all(|sample| *sample == [0.4, -0.2]));
+
+    // A new mono region must use a fresh excitation history and no old tail.
+    for start in [1_000, 1_128] {
+        stream.push(&packet(start, 1, 0.0, |_| [-0.3, 0.0]));
+    }
+    let restarted = stream.render_ready().unwrap().unwrap();
+    assert_eq!(restarted.start, 1_000);
+    assert!(
+        restarted
+            .samples
+            .iter()
+            .all(|sample| *sample == [-0.6, 0.0])
     );
 }

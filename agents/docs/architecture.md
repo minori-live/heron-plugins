@@ -126,6 +126,9 @@ them only after equivalent upstream behavior passes the relevant native checks.
   invoke an allocator or destroy a heap-owning processor.
 - Keep filesystem/network access, UI work, font loading, clipboard access,
   serialization, logging and blocking synchronization off audio callbacks.
+  Revox's callback alone waits for worker queue capacity and matching processed
+  audio in every host process mode. Its fixed-capacity queues retain bounded
+  memory; its callback duration follows the worker's processing time.
 - Use fixed-capacity state, atomic snapshots or bounded non-blocking handoffs
   where processing meets parameters, events, telemetry and preparation.
 - Allocate voices, histories and processing capacity at an appropriate
@@ -203,7 +206,8 @@ This strong environment owner supports reopening after all instances close. Load
 feature extraction, inference, synthesis and destruction run outside the audio
 callback; these operations allocate and may block. No Python runtime or helper
 process is used by the Rust DSP. Python is used only to export the upstream FCPE
-checkpoint, prepare model shapes and produce independent feature references.
+checkpoint, prepare the plug-in model interface and produce independent feature
+references.
 
 The pinned FCPE export maps time-major 128-band Mel features to 360 pitch-bin
 probabilities. Input is antialiased from 48 kHz to 16 kHz with a centered FIR;
@@ -218,8 +222,8 @@ Revox 1.5 receives unchanged magnitude-Mel features and pitch scaled by
 still synthesizes a new waveform. Seeded unit-variance noise is supplied directly;
 the model applies its own noise gain. Centered iSTFT preserves the exact input
 sample count without normalization or clipping. Model errors are typed and
-propagated to the caller. The plug-in adapter exposes failure and uses delayed
-dry audio as described below.
+propagated to the caller. The plug-in adapter exposes failure and outputs silence
+until host reactivation/reset; it never substitutes dry audio.
 
 ORT enables every EP in the largest compatible prebuilt set for each supported
 target. The default priority is CoreML, WebGPU, CPU on Apple Silicon; TensorRT
@@ -246,11 +250,25 @@ compile a custom ORT. Intel macOS has no rc.14 prebuilt distribution.
 
 Both models are noncausal. FCPE's symmetric convolutions require up to 92 frames
 of context per side, and its GroupNorm also depends on the whole input window.
-Revox resets excitation phase between calls. The plug-in worker uses fixed
+The original Revox graph resets excitation phase between calls. The plug-in
+graph exposes a per-channel source-phase input instead. The plug-in worker uses fixed
 2.12-second windows (960 ms left context, 160 ms output step, 40 ms overlap and
 960 ms right context), crops the center, and uses a raised-cosine overlap to
-join successive outputs. This reduces hard seams but does not restore the model's
-missing continuous excitation state or prove perceptually transparent vocals.
+join successive outputs. After successful synthesis, each channel retains the
+first 117 frames of unshifted pitch, confidence, voicing and validity: 96 left
+context frames, 16 output frames, 4 overlap frames and the next interpolation
+frame. The next window reuses the preceding window's frames 16..116 as its
+frames 0..100; later future estimates remain current. The current pitch-shift
+ratio applies to this accepted unshifted pitch. Each channel carries source
+phase across output steps, anchoring the next crop's model sample 46080 to the
+preceding window's sample 53760, including when the pitch-shift ratio changes.
+Excitation noise is deterministic at each absolute model-sample position, so
+adjoining windows use the same noise in their shared region. The first window's
+origin is -46080 and advances by 7680 only after successful synthesis. These
+histories reset for a new contiguous or channel-layout region. FCPE's whole-window
+normalization and Revox's context-dependent synthesis still vary with window
+context; this contract does not establish transparent vocal seams or equivalence
+to whole-input rendering.
 Host rates 44.1/48/88.2/96/176.4/192 kHz are converted to/from the model's 48 kHz
 by a centered polyphase sinc on the worker. Both this converter and the 48-to-16 kHz
 FCPE converter use SIMD dot products for complete tap windows and retain scalar
@@ -271,28 +289,31 @@ Truce's reset configuration has no channel count, so the worker waits for the
 first audio packet to select and warm up exactly one pair of sessions. A change
 between mono and stereo retires those sessions on the worker and prepares the
 new shape. The callback starts a fresh delayed region and discards old-layout
-input, dry history and wet output; it also drains stale output during this new
-region's preroll so short layout changes cannot fill both queues and stall an
-offline bounce.
+input and wet output; it also drains stale output during this new region's
+preroll so short layout changes cannot fill both queues and stall an audio
+callback.
 
 The host receives a constant latency of 1.48 seconds plus 128 host samples,
 including a 320 ms inference allowance. This first version targets track
 processing, not low-latency live monitoring. The callback sends/receives fixed
 128-frame stereo packets through two preallocated 2048-packet queues. Packets
 carry absolute input sample positions; stale output is discarded, future output
-is held until its matching delayed position, and missing input starts a new
-context region. Pitch settings are captured with input packets and selected at
-the output window's starting timestamp, quantized to the 160 ms processing step.
+is held until its matching delayed position, and current-region input is never
+dropped. Pitch settings are captured with input packets and selected at the
+output window's starting timestamp, quantized to the 160 ms processing step.
 
-Real-time and buffered callbacks never wait, allocate, load a model or run ORT.
-Loading, missed deadlines and model failure produce latency-aligned dry audio;
-a 5 ms transition smooths wet/dry recovery. The editor distinguishes loading,
-processing, overload, failure and unsupported sample rate. A worker failure stays
-failed until host reactivation/reset. Unsupported rates have zero latency and
-pass input through. Host-declared offline rendering waits for the same worker's
-matching output, preserving output under faster-than-realtime bounce; known
-missing intervals use delayed dry without waiting for unsubmitted future audio.
-Reset/destruction stop and join the previous worker off the realtime callback.
+Real-time, buffered and offline callbacks all preserve queued input and wait for
+the same worker's matching output in order. A full queue applies backpressure;
+slow loading or inference extends callback time without dropping audio, changing
+the reported latency or substituting dry audio. The DAW owns deadline handling
+and buffer-size adjustments. Revox has no overload state or automatic bypass.
+Only the reported latency preroll outputs zero before processed audio is due.
+The callback never allocates, loads a model or runs ORT. The editor distinguishes
+loading, processing, failure and unsupported sample rate. Worker initialization
+or inference failure stays failed and outputs silence until host
+reactivation/reset. Unsupported rates have zero latency and output silence until
+the host configures a supported rate. Reset/destruction stop and join the previous
+worker off the realtime callback.
 
 Truce 6.3 prepares DSP at VST3 activation, so the initial latency query must follow
 `setActive(true)`. Heron's VST3 host already uses that order; hosts that only query
@@ -318,8 +339,11 @@ line. Keep the Rust wrapper and bundled native runtime resolution together in
 `Cargo.lock`. FCPE source/weight checksums and Python export dependencies are
 locked under `scripts/revox/`; Revox's immutable revision and model checksum are
 in `scripts/fetch-revox-model.ts`. `scripts/revox/prepare_vocoder.py` audits the
-pinned Revox graph's batch axes and specializes only its input/output shapes;
-all operations and weights remain unchanged. FCPE's plugin graph is exported from
+pinned Revox graph's batch axes, fixes its time dimensions and adds a float32
+`phase_cycles` input with shape `[batch, 1]`. The graph adds this per-channel
+phase offset after the original zero-origin source-phase calculation. Learned
+weights remain unchanged; the prepared plug-in graph exposes source-phase
+continuity directly. FCPE's plugin graph is exported from
 the same checkpoint with dynamic batch and fixed time, checked against upstream
 PyTorch for batches 1 and 2. The original variable-length mono graphs remain
 available for standalone probes. We use the official FCPE MIT checkpoint and

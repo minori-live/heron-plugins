@@ -5,11 +5,10 @@ use std::sync::atomic::{AtomicU8, AtomicU32, AtomicU64, Ordering};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 pub enum ProcessingState {
-    Loading,
-    Ready,
-    Overloaded,
-    Failed,
-    UnsupportedRate,
+    Loading = 0,
+    Ready = 1,
+    Failed = 3,
+    UnsupportedRate = 4,
 }
 
 pub struct ProcessingStatus {
@@ -32,7 +31,6 @@ impl ProcessingStatus {
     pub fn state(&self) -> ProcessingState {
         match self.state.load(Ordering::Acquire) {
             1 => ProcessingState::Ready,
-            2 => ProcessingState::Overloaded,
             3 => ProcessingState::Failed,
             4 => ProcessingState::UnsupportedRate,
             _ => ProcessingState::Loading,
@@ -56,16 +54,5 @@ impl ProcessingStatus {
 
     pub(crate) fn set(&self, state: ProcessingState) {
         self.state.store(state as u8, Ordering::Release);
-    }
-
-    pub(crate) fn available(&self, available: bool) {
-        let (from, to) = if available {
-            (ProcessingState::Overloaded, ProcessingState::Ready)
-        } else {
-            (ProcessingState::Ready, ProcessingState::Overloaded)
-        };
-        let _ =
-            self.state
-                .compare_exchange(from as u8, to as u8, Ordering::AcqRel, Ordering::Relaxed);
     }
 }

@@ -429,11 +429,10 @@ impl IcedPlugin<RevoxParams> for RevoxUi {
             .center_x(Length::Fill)
             .center_y(Length::Fill);
         let (state, warning) = match self.params.status.state() {
-            ProcessingState::Loading => ("Loading… · Dry", false),
+            ProcessingState::Loading => ("Loading…", false),
             ProcessingState::Ready => ("Processing", false),
-            ProcessingState::Overloaded => ("Overloaded · Dry", true),
-            ProcessingState::Failed => ("Model unavailable · Dry", true),
-            ProcessingState::UnsupportedRate => ("Unsupported rate · Dry", true),
+            ProcessingState::Failed => ("Model unavailable", true),
+            ProcessingState::UnsupportedRate => ("Unsupported rate", true),
         };
         let rate = self.params.status.sample_rate();
         let latency = if rate > 0.0 {
@@ -478,7 +477,6 @@ fn status_stamp(params: &RevoxParams) -> (u8, u32, u64, u64) {
     let state = match params.status.state() {
         ProcessingState::Loading => 0,
         ProcessingState::Ready => 1,
-        ProcessingState::Overloaded => 2,
         ProcessingState::Failed => 3,
         ProcessingState::UnsupportedRate => 4,
     };

@@ -9,7 +9,7 @@ use heron_revox_dsp::DspError;
 use std::{
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, Ordering},
     },
     thread::{self, JoinHandle},
     time::Duration,
@@ -41,9 +41,6 @@ impl Packet {
 pub(crate) struct Lane {
     pub input: ArrayQueue<Packet>,
     pub output: ArrayQueue<Packet>,
-    /// Missing output before this boundary must not hold up an offline render.
-    /// Already queued output remains usable, including earlier timestamps.
-    pub output_floor: AtomicU64,
     pub stop: AtomicBool,
 }
 
@@ -56,7 +53,6 @@ impl Lane {
         Self {
             input: ArrayQueue::new(queue_packets),
             output: ArrayQueue::new(queue_packets),
-            output_floor: AtomicU64::new(0),
             stop: AtomicBool::new(false),
         }
     }
@@ -140,7 +136,6 @@ fn run<R: Renderer>(
     geometry: Geometry,
     mut load: impl FnMut(usize) -> Result<R, DspError>,
 ) {
-    let mut received_end = 0;
     let mut channels = 0;
     let mut stream: Option<Stream<R>> = None;
     while !lane.stop.load(Ordering::Acquire) {
@@ -148,13 +143,6 @@ fn run<R: Renderer>(
             thread::sleep(Duration::from_millis(1));
             continue;
         };
-        if packet.start != received_end || packet.channels != channels {
-            // Publish the gap before collecting enough context to render the
-            // next region. Otherwise an offline callback can wait for old audio
-            // while the worker needs more input from that same callback.
-            lane.output_floor.fetch_max(packet.start, Ordering::Release);
-        }
-        received_end = packet.start + packet.len as u64;
         if packet.channels != channels {
             if !(1..=2).contains(&packet.channels) {
                 status.set(ProcessingState::Failed);
