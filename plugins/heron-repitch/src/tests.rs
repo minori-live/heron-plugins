@@ -22,6 +22,15 @@ fn repitch_has_its_own_effect_identity_and_persistent_pitch_controls() {
     assert_eq!(info.clap_id, "live.minori.heron.repitch");
     assert_eq!(info.au_type, *b"aufx");
     assert_eq!(info.fourcc, *b"HRRP");
+    // Raw FNV-1a-128 bytes; scripts/catalog.ts stores the COM-layout hex
+    // `B3C6C5BCC36E4A1173BC693A14112A03` that vst3-probe compares against.
+    assert_eq!(
+        truce::core::state::vst3_cid(info.vst3_id),
+        [
+            0xbc, 0xc5, 0xc6, 0xb3, 0x6e, 0xc3, 0x11, 0x4a, 0x73, 0xbc, 0x69, 0x3a, 0x14, 0x11,
+            0x2a, 0x03
+        ],
+    );
     let params = RepitchParams::default();
     params.set_plain(0u32, -4.0);
     params.set_plain(1u32, 37.0);

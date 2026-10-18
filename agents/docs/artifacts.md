@@ -37,7 +37,7 @@ executable modes and relative symlinks and rejects links escaping the root.
 
 The actual VST3/AUv2 manifest lists every catalog entry, including Revox's
 unchanged `801E1EF7D1FBA46DD7EE039C0317622C` VST3 and `aufx:HRRV:HRON` AU identities
-and Repitch's `815F4375B80340989B4A66DB932AB067` VST3 and `aufx:HRRP:HRON` AU
+and Repitch's `B3C6C5BCC36E4A1173BC693A14112A03` VST3 and `aufx:HRRP:HRON` AU
 identities.
 VST3 native IDs use Heron's
 GUID display order; the binary probe checks the exported COM-layout bytes after

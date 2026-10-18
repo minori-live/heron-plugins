@@ -21,7 +21,7 @@ export const repitch = {
   auType: "aufx",
   crate: "heron-repitch",
   slug: "repitch",
-  nativeId: "815F4375B80340989B4A66DB932AB067",
+  nativeId: "B3C6C5BCC36E4A1173BC693A14112A03",
   fourcc: "HRRP",
   aaxIds: null
 } as const

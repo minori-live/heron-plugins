@@ -16,7 +16,7 @@ test("VST3 suite identities preserve saved Heron projects", () => {
       ["live.minori.heron.sine", "C1351DFA4DDD4B4AC1F30896F6D9DF76"],
       ["live.minori.heron.metronome", "8CD16A11027ACC7FDF0C1419E86D1024"],
       ["live.minori.heron.revox", "801E1EF7D1FBA46DD7EE039C0317622C"],
-      ["live.minori.heron.repitch", "815F4375B80340989B4A66DB932AB067"]
+      ["live.minori.heron.repitch", "B3C6C5BCC36E4A1173BC693A14112A03"]
     ]
   )
   assert.equal(
@@ -47,7 +47,7 @@ test("Revox preserves its development identity in the released suite", () => {
 
 test("Repitch preserves its development identity in the released suite", () => {
   assert.equal(repitch.builtinId, "live.minori.heron.repitch")
-  assert.equal(repitch.nativeId, "815F4375B80340989B4A66DB932AB067")
+  assert.equal(repitch.nativeId, "B3C6C5BCC36E4A1173BC693A14112A03")
   assert.equal(`${repitch.auType}:${repitch.fourcc}:HRON`, "aufx:HRRP:HRON")
   assert.equal(bundleName(repitch, "vst3"), "Heron Repitch.vst3")
   assert.equal(bundleName(repitch, "au2"), "Heron Repitch.component")
