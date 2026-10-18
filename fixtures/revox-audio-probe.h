@@ -32,7 +32,7 @@ inline void verify_audio(const std::vector<float>& output, uint32_t latency, con
     require(std::all_of(output.begin(), output.begin() + latency, [](float value) { return value == 0.0f; }),
             "audio appeared before the reported latency");
 
-    // Inspect a steady interval beyond startup and the delayed dry/wet transition.
+    // Inspect a steady interval beyond startup and the reported latency.
     const size_t start = latency + 24'000;
     const size_t length = 24'000;
     double energy = 0.0;
@@ -64,9 +64,8 @@ inline void verify_audio(const std::vector<float>& output, uint32_t latency, con
     const double cents = 1200.0 * std::log2(measured / expected);
     std::printf("Packaged Revox %s: latency=%u samples, pitch=%.3f Hz, expected=%.3f Hz, error=%.2f cents, rms=%.5f\n",
                 format, static_cast<unsigned>(latency), measured, expected, cents, rms);
-    // An initialization failure falls back to 220 Hz delayed dry audio. Ignoring
-    // the fine control gives +3 semitones, 50 cents below the requested pitch.
-    // A 25-cent bound rejects both cases despite integer-lag quantization.
+    // Ignoring the fine control gives +3 semitones, 50 cents below the requested
+    // pitch. A 25-cent bound rejects it despite integer-lag quantization.
     require(std::abs(cents) < 25.0, "packaged Revox did not apply the combined +3.5 semitone shift");
 }
 } // namespace revox_audio

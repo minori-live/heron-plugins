@@ -43,9 +43,9 @@ impl PluginLogic for HeronRevox {
         params: &RevoxParams,
         buffer: &mut AudioBuffer,
         _events: &EventList,
-        context: &mut ProcessContext,
+        _context: &mut ProcessContext,
     ) -> ProcessStatus {
-        state.process(params, buffer, context.process_mode.is_offline());
+        state.process(params, buffer);
         ProcessStatus::Normal
     }
 

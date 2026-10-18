@@ -1,8 +1,9 @@
 """Prepare Revox's fixed 212-frame plugin graph with one symbolic channel batch.
 
 Run after node scripts/fetch-revox-model.ts using target/revox/venv/bin/python.
-Only input/output shape annotations change; the original mono probe graph stays
-available. The Rust session fixes `batch` to the active mono/stereo layout.
+The prepared graph adds a per-channel source-phase offset without changing learned
+weights; the original mono probe graph stays available. The Rust worker fixes
+`batch` to the active layout and carries phase between overlapping windows.
 """
 from __future__ import annotations
 
@@ -13,6 +14,8 @@ import json
 from pathlib import Path
 
 import onnx
+import numpy as np
+import onnxruntime as ort
 from onnx import helper, numpy_helper
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -92,6 +95,51 @@ def audit_batch_axes(model) -> None:
             raise ValueError(f"Unaudited Revox operator: {node.op_type} ({node.name})")
 
 
+def add_phase_input(model) -> None:
+    """Offset the original zero-origin carrier before harmonic multiplication."""
+    node = next(n for n in model.graph.node if n.name == "/source/Unsqueeze")
+    require(list(node.input) == ["/source/Sub_3_output_0", "/source/Constant_24_output_0"],
+            "Revox source phase no longer matches the pinned graph")
+    index = list(model.graph.node).index(node)
+    model.graph.node.insert(index, helper.make_node(
+        "Add", ["/source/Sub_3_output_0", "phase_cycles"],
+        ["/source/continuous_phase_cycles"], name="/source/phase_continuity"))
+    model.graph.node[index + 1].input[0] = "/source/continuous_phase_cycles"
+    model.graph.input.append(helper.make_tensor_value_info(
+        "phase_cycles", onnx.TensorProto.FLOAT, ["batch", 1]))
+
+
+def validate_phase_input(original, prepared) -> dict:
+    """Prove zero-offset parity and equal-time carrier continuity on real weights."""
+    old = ort.InferenceSession(original.SerializeToString(), providers=["CPUExecutionProvider"])
+    new = ort.InferenceSession(prepared.SerializeToString(), providers=["CPUExecutionProvider"])
+    hop_samples = 7_680
+    noise = np.random.default_rng(42).standard_normal(SAMPLES + hop_samples).astype(np.float32)
+    inputs = {
+        "mel": np.full((1, 128, FRAMES), -8.0, dtype=np.float32),
+        "f0_hz": np.full((1, FRAMES), 220.0, dtype=np.float32),
+        "voiced": np.ones((1, FRAMES), dtype=np.bool_),
+        "pitch_valid": np.ones((1, FRAMES), dtype=np.bool_),
+        "noise": noise[:SAMPLES][None],
+    }
+    reference = old.run(None, inputs)
+    rendered = new.run(None, {**inputs, "phase_cycles": np.zeros((1, 1), dtype=np.float32)})
+    require(all(np.array_equal(a, b) for a, b in zip(reference, rendered)),
+            "Zero source-phase offset changed the pinned Revox output")
+    advanced = new.run(None, {
+        **inputs, "noise": noise[hop_samples:][None],
+        "phase_cycles": np.full((1, 1), 0.2, dtype=np.float32),
+    })
+    # A 160 ms advance at 220 Hz is 35.2 cycles. Compare the same physical
+    # interval with equal Mel/F0/noise, well inside the noncausal context.
+    before = np.concatenate([value[:, :, 96:116].ravel() for value in rendered])
+    after = np.concatenate([value[:, :, 80:100].ravel() for value in advanced])
+    error = float(np.linalg.norm(after - before) / np.linalg.norm(before))
+    require(error < 0.001, f"Source-phase continuation changed equal-time spectra: {error}")
+    return {"zero_offset_matches_original_exactly": True,
+            "continued_overlap_relative_spectrum_rms_error": error}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-dir", type=Path, default=ROOT / "target/revox/models")
@@ -109,8 +157,7 @@ def main() -> None:
                 dim.dim_value = FRAMES
             elif dim.dim_param == "samples":
                 dim.dim_value = SAMPLES
-    require([n.SerializeToString() for n in model.graph.node] ==
-            [n.SerializeToString() for n in original.graph.node], "Revox operations changed")
+    add_phase_input(model)
     require([t.SerializeToString() for t in model.graph.initializer] ==
             [t.SerializeToString() for t in original.graph.initializer], "Revox weights changed")
     onnx.checker.check_model(model, full_check=True)
@@ -122,6 +169,7 @@ def main() -> None:
         inferred = onnx.shape_inference.infer_shapes(specialized, strict_mode=True, data_prop=True)
         require(all(shape(v) == [batch, 1025, FRAMES] for v in inferred.graph.output),
                 f"Unexpected Revox output shape for batch {batch}")
+    parity = validate_phase_input(original, model)
     output = directory / "revox-plugin.onnx"
     onnx.save(model, output)
     evidence = {
@@ -129,9 +177,9 @@ def main() -> None:
         "onnx": {"file": output.name, "sha256": hashlib.sha256(output.read_bytes()).hexdigest()},
         "inputs": {v.name: shape(v) for v in model.graph.input},
         "outputs": {v.name: shape(v) for v in model.graph.output},
-        "transformation": "Only input/output shape annotations; all nodes and weights unchanged",
+        "transformation": "Fixed time and symbolic batch; per-channel phase_cycles added after the original zero-origin source phase; learned weights unchanged",
         "batch_audit": "Time/channel operations preserve axis 0; no cross-item reduction or reshape",
-        "checked_batches": [1, 2], "opset": 17,
+        "phase_validation": parity, "checked_batches": [1, 2], "opset": 17,
     }
     (directory / "revox-plugin-manifest.json").write_text(json.dumps(evidence, indent=2) + "\n")
     print(json.dumps(evidence, indent=2))

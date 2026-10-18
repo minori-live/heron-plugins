@@ -12,10 +12,17 @@ use crate::{
     pitch::{self, PITCH_BINS, PitchError, PitchFrame},
     resample::PitchResampler,
     runtime::{BackendReport, OrtRuntime, RuntimeError},
+    streaming::StreamState,
 };
 
 /// Fixed 2.12 second context window used by the mono/stereo plug-in graphs.
 pub const PLUGIN_WINDOW_SAMPLES: usize = 101_760;
+/// Fixed left and right context, 960 ms at the model's 48 kHz rate.
+pub const PLUGIN_CONTEXT_SAMPLES: usize = 46_080;
+/// Samples emitted per streaming invocation, 160 ms at the model rate.
+pub const PLUGIN_HOP_SAMPLES: usize = 7_680;
+/// Samples shared by successive emitted crops, 40 ms at the model rate.
+pub const PLUGIN_OVERLAP_SAMPLES: usize = 1_920;
 const PLUGIN_REVOX_FRAMES: usize = PLUGIN_WINDOW_SAMPLES / HOP_SIZE;
 const PLUGIN_FCPE_FRAMES: usize = PLUGIN_WINDOW_SAMPLES / 3 / crate::fcpe_features::HOP_SIZE + 1;
 
@@ -72,10 +79,12 @@ pub struct ModelBackends {
 
 /// One pair of model sessions, owned by one non-real-time caller.
 ///
-/// The sample rate is fixed at 48 kHz. Each batch item is one audio channel. Calls are independent windows: both
-/// models are noncausal, FCPE normalization depends on the entire window, and
-/// Revox's source phase resets per inference. This is not a seamless streaming
-/// processor and must not be called from a host's audio callback.
+/// The sample rate is fixed at 48 kHz. Each batch item is one audio channel. Both
+/// models are noncausal and FCPE normalization depends on the entire window.
+/// Ordinary render calls are independent windows. The fixed plug-in graph also
+/// supports sequential overlapping windows with accepted pitch history and
+/// continuous excitation via [`Self::render_stream_channels`]. None of these
+/// calls may run in a host's audio callback.
 pub struct RevoxDsp {
     fcpe: Session,
     revox: Session,
@@ -85,6 +94,7 @@ pub struct RevoxDsp {
     backends: ModelBackends,
     channels: usize,
     fixed_window: bool,
+    stream: StreamState,
 }
 
 impl RevoxDsp {
@@ -155,12 +165,19 @@ impl RevoxDsp {
         fixed_window: bool,
     ) -> Result<Self, DspError> {
         verify_names(&fcpe, "FCPE", &["mel"], &["probabilities"])?;
-        verify_names(
-            &revox,
-            "Revox",
-            &["mel", "f0_hz", "voiced", "pitch_valid", "noise"],
-            &["real", "imag"],
-        )?;
+        let revox_inputs: &[&str] = if fixed_window {
+            &[
+                "mel",
+                "f0_hz",
+                "voiced",
+                "pitch_valid",
+                "noise",
+                "phase_cycles",
+            ]
+        } else {
+            &["mel", "f0_hz", "voiced", "pitch_valid", "noise"]
+        };
+        verify_names(&revox, "Revox", revox_inputs, &["real", "imag"])?;
         Ok(Self {
             fcpe,
             revox,
@@ -169,6 +186,7 @@ impl RevoxDsp {
             resampler: PitchResampler::new(),
             channels,
             fixed_window,
+            stream: StreamState::default(),
             backends: ModelBackends {
                 fcpe: fcpe_backend,
                 revox: revox_backend,
@@ -271,6 +289,21 @@ impl RevoxDsp {
         semitones: f32,
         seed: u64,
     ) -> Result<Vec<Vec<f32>>, DspError> {
+        let samples = analysis
+            .first()
+            .map_or(0, |analysis| analysis.frames() * HOP_SIZE);
+        let noise = seeded_noise(seed, samples);
+        let phase_cycles = vec![0.0; self.channels];
+        self.render_batch_with_source(analysis, semitones, &noise, &phase_cycles)
+    }
+
+    fn render_batch_with_source(
+        &mut self,
+        analysis: &[Analysis],
+        semitones: f32,
+        one_noise: &[f32],
+        phase_cycles: &[f32],
+    ) -> Result<Vec<Vec<f32>>, DspError> {
         if !semitones.is_finite() || !(-13.0..=13.0).contains(&semitones) {
             return Err(DspError::PitchShift);
         }
@@ -299,15 +332,21 @@ impl RevoxDsp {
             .collect();
         let voiced: Vec<_> = pitch.clone().map(|frame| frame.voiced).collect();
         let valid: Vec<_> = pitch.map(|frame| frame.pitch_valid).collect();
-        let one_noise = seeded_noise(seed, frames * HOP_SIZE);
-        let noise = concatenate((0..self.channels).map(|_| one_noise.as_slice()));
-        let outputs = self.revox.run(ort::inputs![
+        let noise = concatenate((0..self.channels).map(|_| one_noise));
+        let mut inputs = ort::inputs![
             "mel" => TensorRef::from_array_view(([self.channels, MEL_BINS, frames], mel.as_ref()))?,
             "f0_hz" => TensorRef::from_array_view(([self.channels, frames], f0.as_slice()))?,
             "voiced" => TensorRef::from_array_view(([self.channels, frames], voiced.as_slice()))?,
             "pitch_valid" => TensorRef::from_array_view(([self.channels, frames], valid.as_slice()))?,
             "noise" => TensorRef::from_array_view(([self.channels, frames * HOP_SIZE], noise.as_ref()))?,
-        ])?;
+        ];
+        if self.fixed_window {
+            inputs.push((
+                "phase_cycles".into(),
+                TensorRef::from_array_view(([self.channels, 1], phase_cycles))?.into(),
+            ));
+        }
+        let outputs = self.revox.run(inputs)?;
         let shape = [self.channels as i64, SPECTRUM_BINS as i64, frames as i64];
         let real = output_tensor(&outputs, "Revox", "real", &shape)?;
         let imag = output_tensor(&outputs, "Revox", "imag", &shape)?;
@@ -336,6 +375,51 @@ impl RevoxDsp {
         let inputs: Vec<_> = audio48k.iter().map(Vec::as_slice).collect();
         let analysis = self.analyze_channels(&inputs)?;
         self.render_batch(&analysis, semitones, seed)
+    }
+
+    /// Renders the next fixed window, exactly one [`PLUGIN_HOP_SAMPLES`] later
+    /// than the previous one. Pitch/masks already used by the emitted crop and
+    /// overlap remain accepted; excitation phase and absolute noise continue.
+    ///
+    /// Call [`Self::reset_stream`] before the first window of a new audio region,
+    /// including after warmup. State advances only after successful synthesis.
+    ///
+    /// # Errors
+    /// Rejects the dynamic probe graph, invalid shapes/shifts, and analysis,
+    /// inference or synthesis failures. A failed window does not advance state.
+    pub fn render_stream_channels(
+        &mut self,
+        audio48k: &[Vec<f32>],
+        semitones: f32,
+        seed: u64,
+    ) -> Result<Vec<Vec<f32>>, DspError> {
+        if !self.fixed_window {
+            return Err(DspError::ModelContract {
+                model: "Revox streaming",
+            });
+        }
+        if !semitones.is_finite() || !(-13.0..=13.0).contains(&semitones) {
+            return Err(DspError::PitchShift);
+        }
+        let inputs: Vec<_> = audio48k.iter().map(Vec::as_slice).collect();
+        let mut analysis = self.analyze_channels(&inputs)?;
+        let prepared = self.stream.prepare(
+            analysis
+                .iter_mut()
+                .map(|analysis| analysis.pitch.as_mut_slice()),
+            (semitones / 12.0).exp2(),
+        );
+        let noise = self.stream.noise(seed);
+        let output =
+            self.render_batch_with_source(&analysis, semitones, &noise, &prepared.phase_cycles)?;
+        self.stream.commit(prepared);
+        Ok(output)
+    }
+
+    /// Starts a new contiguous audio region without retaining old pitch, phase
+    /// or noise position. Model sessions and feature plans remain prepared.
+    pub fn reset_stream(&mut self) {
+        self.stream = StreamState::default();
     }
 }
 
@@ -383,6 +467,7 @@ fn verify_fixed_inputs(fcpe: &Session, revox: &Session, channels: usize) -> Resu
         (revox, "Revox", "f0_hz", vec![batch, frames]),
         (revox, "Revox", "voiced", vec![batch, frames]),
         (revox, "Revox", "pitch_valid", vec![batch, frames]),
+        (revox, "Revox", "phase_cycles", vec![batch, 1]),
         (
             revox,
             "Revox",

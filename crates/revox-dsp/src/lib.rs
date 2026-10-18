@@ -11,6 +11,10 @@ mod pipeline;
 mod pitch;
 mod resample;
 pub mod runtime;
+mod streaming;
 
-pub use pipeline::{Analysis, DspError, ModelBackends, PLUGIN_WINDOW_SAMPLES, RevoxDsp};
+pub use pipeline::{
+    Analysis, DspError, ModelBackends, PLUGIN_CONTEXT_SAMPLES, PLUGIN_HOP_SAMPLES,
+    PLUGIN_OVERLAP_SAMPLES, PLUGIN_WINDOW_SAMPLES, RevoxDsp,
+};
 pub use pitch::PitchFrame;

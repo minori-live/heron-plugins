@@ -19,6 +19,7 @@ pub(crate) const PACKET_FRAMES: usize = 128;
 const QUEUE_PACKETS: usize = 2048;
 
 pub(crate) struct Packet {
+    pub generation: u64,
     pub start: u64,
     pub len: usize,
     pub channels: usize,
@@ -29,6 +30,7 @@ pub(crate) struct Packet {
 impl Packet {
     pub fn new(start: u64, channels: usize, shift: f32) -> Self {
         Self {
+            generation: 0,
             start,
             len: 0,
             channels,
@@ -39,11 +41,9 @@ impl Packet {
 }
 
 pub(crate) struct Lane {
+    pub generation: AtomicU64,
     pub input: ArrayQueue<Packet>,
     pub output: ArrayQueue<Packet>,
-    /// Missing output before this boundary must not hold up an offline render.
-    /// Already queued output remains usable, including earlier timestamps.
-    pub output_floor: AtomicU64,
     pub stop: AtomicBool,
 }
 
@@ -54,9 +54,9 @@ impl Lane {
 
     fn with_capacity(queue_packets: usize) -> Self {
         Self {
+            generation: AtomicU64::new(0),
             input: ArrayQueue::new(queue_packets),
             output: ArrayQueue::new(queue_packets),
-            output_floor: AtomicU64::new(0),
             stop: AtomicBool::new(false),
         }
     }
@@ -89,6 +89,8 @@ impl Worker {
         lane: Arc<Lane>,
         load: impl FnMut(usize) -> Result<R, DspError> + Send + 'static,
     ) -> Option<Self> {
+        lane.generation
+            .store(status.generation(), Ordering::Release);
         let shared = lane.clone();
         let worker_status = status.clone();
         let thread = thread::Builder::new()
@@ -140,27 +142,35 @@ fn run<R: Renderer>(
     geometry: Geometry,
     mut load: impl FnMut(usize) -> Result<R, DspError>,
 ) {
-    let mut received_end = 0;
     let mut channels = 0;
+    let mut generation = 0;
+    let mut failed_generation = None;
     let mut stream: Option<Stream<R>> = None;
     while !lane.stop.load(Ordering::Acquire) {
         let Some(packet) = lane.input.pop() else {
             thread::sleep(Duration::from_millis(1));
             continue;
         };
-        if packet.start != received_end || packet.channels != channels {
-            // Publish the gap before collecting enough context to render the
-            // next region. Otherwise an offline callback can wait for old audio
-            // while the worker needs more input from that same callback.
-            lane.output_floor.fetch_max(packet.start, Ordering::Release);
+        if packet.generation != lane.generation.load(Ordering::Acquire)
+            || failed_generation == Some(packet.generation)
+        {
+            continue;
         }
-        received_end = packet.start + packet.len as u64;
-        if packet.channels != channels {
-            if !(1..=2).contains(&packet.channels) {
-                status.set(ProcessingState::Failed);
-                return;
+        if packet.generation != generation {
+            if let Some(stream) = stream.as_mut() {
+                stream.reset();
             }
-            status.set(ProcessingState::Loading);
+            generation = packet.generation;
+            failed_generation = None;
+        }
+        if stream.is_none() || packet.channels != channels {
+            if !(1..=2).contains(&packet.channels) {
+                if status.set_for_generation(generation, ProcessingState::Failed) {
+                    failed_generation = Some(generation);
+                }
+                continue;
+            }
+            let _ = status.set_for_generation(generation, ProcessingState::Loading);
             // AudioConfig has no channel count. The first packet chooses batch
             // one or two; a later layout change retires the old sessions here.
             drop(stream.take());
@@ -169,37 +179,55 @@ fn run<R: Renderer>(
                 return;
             }
             let Ok(prepared) = prepared else {
-                status.set(ProcessingState::Failed);
-                return;
+                if status.set_for_generation(generation, ProcessingState::Failed) {
+                    failed_generation = Some(generation);
+                }
+                continue;
             };
             stream = Some(prepared);
             channels = packet.channels;
-            status.set(ProcessingState::Ready);
         }
-        let Some(stream) = stream.as_mut() else {
-            status.set(ProcessingState::Failed);
-            return;
+        if packet.generation != lane.generation.load(Ordering::Acquire) {
+            continue;
+        }
+        let _ = status.set_for_generation(generation, ProcessingState::Ready);
+        let Some(active) = stream.as_mut() else {
+            continue;
         };
-        stream.push(&packet);
-        let rendered = match stream.render_ready() {
+        active.push(&packet);
+        let rendered = match active.render_ready() {
             Ok(Some(rendered)) => rendered,
             Ok(None) => continue,
             Err(_) => {
-                status.set(ProcessingState::Failed);
-                return;
+                if status.set_for_generation(generation, ProcessingState::Failed) {
+                    failed_generation = Some(generation);
+                    // A genuine failure retires these sessions. Keep the worker
+                    // alive so a concurrent host reset can enqueue a new region
+                    // rather than racing this thread's termination.
+                    stream = None;
+                    channels = 0;
+                }
+                continue;
             }
         };
-        for (index, chunk) in rendered.samples.chunks(PACKET_FRAMES).enumerate() {
+        'publish: for (index, chunk) in rendered.samples.chunks(PACKET_FRAMES).enumerate() {
+            if generation != lane.generation.load(Ordering::Acquire) {
+                break;
+            }
             let mut packet = Packet::new(
                 rendered.start + (index * PACKET_FRAMES) as u64,
                 channels,
                 0.0,
             );
+            packet.generation = generation;
             packet.len = chunk.len();
             packet.samples[..chunk.len()].copy_from_slice(chunk);
             while let Err(returned) = lane.output.push(packet) {
                 if lane.stop.load(Ordering::Acquire) {
                     return;
+                }
+                if generation != lane.generation.load(Ordering::Acquire) {
+                    break 'publish;
                 }
                 packet = returned;
                 thread::sleep(Duration::from_millis(1));
