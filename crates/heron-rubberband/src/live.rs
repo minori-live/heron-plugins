@@ -83,6 +83,7 @@ pub struct LivePitchShifter {
     channels: usize,
     block_size: usize,
     start_delay: usize,
+    pitch_scale: f64,
     formant_preserved: bool,
     input_ring: Vec<f32>,
     output_ring: Vec<f32>,
@@ -160,6 +161,7 @@ impl LivePitchShifter {
             channels,
             block_size,
             start_delay,
+            pitch_scale: scale,
             formant_preserved: options.formant_preserved,
             input_ring: vec![0.0; ring_capacity],
             output_ring: vec![0.0; ring_capacity],
@@ -171,15 +173,43 @@ impl LivePitchShifter {
             in_ptrs: vec![std::ptr::null(); channels],
             out_ptrs: vec![std::ptr::null_mut(); channels],
         };
-        shifter.prime_output_silence();
+        // Grow BQResampler ratio-change scratch across the in-range pitch
+        // extremes and clear LiveShifter's m_firstProcess off the audio thread
+        // so the first realtime setPitchScale/shift never heap-allocates.
+        shifter.warm_realtime_path(scale);
         Ok(shifter)
     }
 
-    fn prime_output_silence(&mut self) {
-        // Emit silence until the first full engine block is produced so hosts
-        // see a stable latency from the first callback.
+    /// Off-audio-thread: grow BQResampler ratio-change scratch across the
+    /// in-range pitch extremes, then `rubberband_live_reset` so the host still
+    /// sees a cold start. `m_firstProcess` stays true afterward; the next
+    /// realtime `setPitchScale` (if any) re-measures using the preallocated
+    /// delay scratch, and the first `shift` applies the usual start pad.
+    fn warm_realtime_path(&mut self, initial_scale: f64) {
+        let frames = self.block_size;
+        let channels = self.channels;
+        let silence = vec![0.0_f32; frames * channels];
+        let mut discarded = vec![0.0_f32; frames * channels];
+        for scale in [0.5_f64, 2.0, initial_scale] {
+            self.set_pitch_scale(scale);
+            self.process_interleaved(&silence, &mut discarded, frames, channels);
+        }
+        // SAFETY: exclusive owned LiveShifter; reset is off the audio thread.
+        unsafe {
+            ffi::rubberband_live_reset(self.state);
+        }
+        self.input_len = 0;
         self.output_len = 0;
         self.output_read = 0;
+        // Force a post-reset pitch apply so delay measurement runs with the
+        // preallocated scratch while m_firstProcess is true again.
+        self.pitch_scale = if (initial_scale - 1.0).abs() < f64::EPSILON {
+            0.5
+        } else {
+            1.0
+        };
+        self.set_pitch_scale(initial_scale);
+        self.start_delay = self.start_delay();
     }
 
     pub fn block_size(&self) -> usize {
@@ -203,17 +233,22 @@ impl LivePitchShifter {
         self.channels
     }
 
-    /// RT-safe when not concurrent with `process_*`.
+    /// RT-safe when not concurrent with `process_*`. Skips the native call when
+    /// the scale is unchanged so Rubber Band never re-enters ratio setup.
     pub fn set_pitch_scale(&mut self, scale: f64) {
         let scale = if scale.is_finite() && scale > 0.0 {
             scale
         } else {
             1.0
         };
+        if (scale - self.pitch_scale).abs() < f64::EPSILON {
+            return;
+        }
         // SAFETY: `self.state` is owned and exclusive for the lifetime of `self`.
         unsafe {
             ffi::rubberband_live_set_pitch_scale(self.state, scale);
         }
+        self.pitch_scale = scale;
         // Pitch scale is an input to getStartDelay(); refresh the cached peek
         // used only for prepare-time capacity sizing.
         self.start_delay = self.start_delay();
@@ -237,18 +272,11 @@ impl LivePitchShifter {
     }
 
     /// Reset internal buffers while retaining the current pitch/formant settings.
-    /// Prefer calling this off the audio thread.
+    /// Not realtime-safe: Rubber Band re-measures resampler delay and this
+    /// re-warms ratio-change scratch afterward.
     pub fn reset(&mut self) {
-        // SAFETY: exclusive ownership of a live state pointer.
-        unsafe {
-            ffi::rubberband_live_reset(self.state);
-        }
-        self.input_len = 0;
-        self.output_len = 0;
-        self.output_read = 0;
-        // SAFETY: state remains valid after reset.
-        self.start_delay = unsafe { ffi::rubberband_live_get_start_delay(self.state) } as usize;
-        self.prime_output_silence();
+        let scale = self.pitch_scale;
+        self.warm_realtime_path(scale);
     }
 
     /// Process interleaved host audio for `frames` frames.

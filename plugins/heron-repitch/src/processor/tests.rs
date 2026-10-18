@@ -125,17 +125,26 @@ fn process_is_allocation_free_after_reset_and_stays_finite() {
             .sample_rate(sample_rate)
             .channels(2)
             .block_size(128)
-            .duration(Duration::from_millis(80))
+            .duration(Duration::from_millis(160))
             .input(InputSource::Buffer(vec![signal.clone(), signal.clone()]))
             .script(|script| {
-                // set_param takes normalized values.
+                // set_param takes normalized values. Sweep pitch, formant,
+                // Quality (engine swap), and Mix while the checker is armed.
                 script.set_param(0u32, (3.0 + 12.0) / 24.0);
                 script.wait_ms(20);
                 script.set_param(1u32, (-25.0 + 100.0) / 200.0);
                 script.wait_ms(20);
                 script.set_param(2u32, 0.0);
                 script.wait_ms(20);
+                script.set_param(3u32, 0.0); // Faster
+                script.wait_ms(20);
+                script.set_param(0u32, (12.0 + 12.0) / 24.0);
+                script.wait_ms(20);
+                script.set_param(3u32, 1.0); // Finer
+                script.wait_ms(20);
                 script.set_param(4u32, 0.5);
+                script.wait_ms(20);
+                script.set_param(0u32, (0.0 + 12.0) / 24.0);
                 script.wait_ms(20);
             })
             .run()

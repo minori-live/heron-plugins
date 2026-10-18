@@ -312,6 +312,10 @@ protected:
     std::unique_ptr<Resampler> m_inResampler;
     std::unique_ptr<Resampler> m_outResampler;
     std::pair<int, int> m_initialResamplerDelays;
+    // Scratch for measureResamplerDelay(); sized in createResamplers so
+    // setPitchScale can re-measure while m_firstProcess without heap traffic.
+    std::vector<float> m_delayMeasureIn;
+    std::vector<float> m_delayMeasureOut;
     bool m_useReadahead;
     int m_prevInhop;
     int m_prevOuthop;

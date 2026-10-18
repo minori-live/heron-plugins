@@ -26,6 +26,7 @@
 #include "../common/VectorOpsComplex.h"
 #include "../common/Profiler.h"
 
+#include <algorithm>
 #include <array>
 
 namespace RubberBand {
@@ -221,6 +222,15 @@ R3LiveShifter::createResamplers()
     m_outResampler = std::unique_ptr<Resampler>
         (new Resampler(resamplerParameters, m_parameters.channels));
 
+    // Pre-size delay-measure scratch here (construction / reset only) so
+    // measureResamplerDelay never allocates when setPitchScale re-runs it
+    // while m_firstProcess is still true.
+    {
+        size_t need = size_t(getBlockSize()) * size_t(m_parameters.channels);
+        m_delayMeasureIn.assign(need, 0.f);
+        m_delayMeasureOut.assign(need, 0.f);
+    }
+
     measureResamplerDelay();
 }
 
@@ -234,15 +244,22 @@ R3LiveShifter::measureResamplerDelay()
     // need a fixed block size and the resampler doesn't return one.
 
     int bs = getBlockSize();
-    std::vector<float> inbuf(bs * m_parameters.channels, 0.f);
-    auto outbuf = inbuf;
-    
+    size_t need = size_t(bs) * size_t(m_parameters.channels);
+    // createResamplers sizes these; never grow here (may run under RT
+    // constraints via setPitchScale while m_firstProcess).
+    if (m_delayMeasureIn.size() < need || m_delayMeasureOut.size() < need) {
+        m_delayMeasureIn.assign(need, 0.f);
+        m_delayMeasureOut.assign(need, 0.f);
+    } else {
+        std::fill_n(m_delayMeasureIn.begin(), need, 0.f);
+    }
+
     int incount = m_inResampler->resampleInterleaved
-        (outbuf.data(), bs, inbuf.data(), bs, getInRatio(), false);
+        (m_delayMeasureOut.data(), bs, m_delayMeasureIn.data(), bs, getInRatio(), false);
     m_inResampler->reset();
 
     int outcount = m_outResampler->resampleInterleaved
-        (outbuf.data(), bs, inbuf.data(), bs, getOutRatio(), false);
+        (m_delayMeasureOut.data(), bs, m_delayMeasureIn.data(), bs, getOutRatio(), false);
     m_outResampler->reset();
     
     m_initialResamplerDelays = { bs - incount, bs - outcount };

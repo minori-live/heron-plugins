@@ -162,20 +162,21 @@ impl RepitchDspState {
             }
         }
 
+        // Only the active channel layout's preallocated shifter runs on the
+        // audio thread. Quality switches select a different prepared engine;
+        // idle mono/stereo twins stay untouched so they keep their warmed state.
         let latency = {
             let set = match quality {
                 Quality::Faster => self.faster.as_mut().expect("checked"),
                 Quality::Finer => self.finer.as_mut().expect("checked"),
             };
-            for shifter in [&mut set.mono, &mut set.stereo] {
-                shifter.set_pitch_scale(scale);
-                shifter.set_formant_preserved(formant);
-            }
             let shifter = if channels == 1 {
                 &mut set.mono
             } else {
                 &mut set.stereo
             };
+            shifter.set_pitch_scale(scale);
+            shifter.set_formant_preserved(formant);
             // Trust Rubber Band's live getStartDelay for the active mode/pitch.
             let latency = shifter.latency_samples();
             shifter.process_interleaved(
