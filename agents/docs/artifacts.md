@@ -1,6 +1,6 @@
 # Artifact contract
 
-One suite version identifies all five plug-ins. The public producer repository
+One suite version identifies all catalog plug-ins. The public producer repository
 is `minori-live/heron-plugins`; a published release tag is `v<VERSION>`. Published
 assets are immutable. A release has five runtime ZIP files and one macOS DMG
 while AAX is disabled. The publisher requires this exact asset set and creates GitHub artifact
@@ -35,8 +35,10 @@ executable modes and relative symlinks and rejects links escaping the root.
 }
 ```
 
-The actual VST3/AUv2 manifest lists all five catalog entries, including Revox's
-unchanged `801E1EF7D1FBA46DD7EE039C0317622C` VST3 and `aufx:HRRV:HRON` AU identities.
+The actual VST3/AUv2 manifest lists every catalog entry, including Revox's
+unchanged `801E1EF7D1FBA46DD7EE039C0317622C` VST3 and `aufx:HRRV:HRON` AU identities
+and Repitch's `815F4375B80340989B4A66DB932AB067` VST3 and `aufx:HRRP:HRON` AU
+identities.
 VST3 native IDs use Heron's
 GUID display order; the binary probe checks the exported COM-layout bytes after
 the same field-order conversion. AU IDs use `type:subtype:manufacturer`; EQ's
@@ -62,8 +64,10 @@ model provenance, FCPE's MIT license and the selected GPL-3.0-only Revox model
 license evidence accompany the bundle under `Contents/Resources/licenses/`.
 Validation of the extracted archive must render shifted audio; merely loading
 the factory or compiling the binary does not prove runtime/model completeness.
-AAX stays disabled and a complete-suite manifest fails until Revox's AAX identity
-and native behavior have release evidence.
+Repitch bundles stage Rubber Band Library 4.0.0 GPL notices under
+`Contents/Resources/licenses/rubberband/` (vendored amalgamation; no separate
+dylib). AAX stays disabled and a complete-suite manifest fails until every
+catalog plug-in's AAX identity and native behavior have release evidence.
 
 Heron locks the four VST3 runtimes, recording the suite version, full source
 commit and four asset filenames. The consumer resolves the tag's commit and

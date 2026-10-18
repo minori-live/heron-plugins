@@ -2,8 +2,9 @@
 
 This document adapts Heron's runtime and execution conventions to the plug-in
 producer. It describes the tools and commands actually configured in this
-repository. The Rust workspace contains five plug-ins, shared Iced/Truce UI and
-reusable plug-in DSP; the Node package owns TypeScript build and release tools.
+repository. The Rust workspace contains the suite plug-ins (including Revox and Repitch),
+shared Iced/Truce UI and reusable plug-in DSP; the Node package owns TypeScript
+build and release tools.
 
 Adapted on 2026-10-10 from Heron's
 [environment conventions](https://github.com/minori-live/heron/blob/fef5cdb165bb322e07f2a280fea8372aa5e22393/agents/docs/environment.md)
@@ -157,11 +158,16 @@ sources. Keep Truce's pinned wrappers and paired Windows scale/focus patches
 consistent when upgrading them.
 
 `scripts/catalog.ts` owns producer bundle names and manifest identities for
-Gain, EQ, Sine, Metronome and Revox. Default plug-in features build VST3. A macOS
-producer build packages VST3 and AUv2 for both architectures, plus a DMG;
-Windows x64 and Linux x64/arm64 package VST3. AAX is explicitly disabled in
-`release-config.json` and requires the separate licensed prerequisites in
+Gain, EQ, Sine, Metronome, Revox and Repitch. Default plug-in features build
+VST3. A macOS producer build packages VST3 and AUv2 for both architectures, plus
+a DMG; Windows x64 and Linux x64/arm64 package VST3. AAX is explicitly disabled
+in `release-config.json` and requires the separate licensed prerequisites in
 [CI and release operations](ci.md).
+
+Repitch vendors Rubber Band 4.0.0 under `third_party/rubberband` and compiles
+`single/RubberBandSingle.cpp` through `crates/rubberband-sys` (no Meson/CMake).
+A C++14 toolchain is required on every CI host (same as VST3 shim builds). On
+Linux, prefer `g++` when `c++` is a clang without libstdc++ headers.
 
 `mise run build` writes runtime archives and installers to
 `target/release-assets/`. It also uses `target/release-stage/`,
@@ -170,7 +176,7 @@ staging and final-archive checks. Each run clears the release asset output.
 macOS development bundles use ad-hoc signing; tag releases keep thin LTO, require
 a clean committed source tree and use Developer ID signing/notarization.
 
-AU validation temporarily installs all five complete components under the
+AU validation temporarily installs all complete suite components under the
 current user's `Library/Audio/Plug-Ins/Components`, restores existing bundles
 afterward and verifies both architectures with simultaneous instances and
 `auval`. Use a controlled local validation session; the script preserves prior
@@ -307,6 +313,17 @@ universal macOS combines its Intel library with the official arm64 library.
 Source builds can take longer than plug-in compilation. Their dependencies and
 notices are tracked by the upstream release. The old static ORT/WebGPU build is
 no longer part of the release pipeline.
+
+### Heron Repitch plug-in
+
+Repitch does not need model downloads. It builds the vendored Rubber Band
+single-file amalgamation and runs LiveShifter pitch tests in-process:
+
+```sh
+cargo test --locked -p heron-rubberband --lib
+cargo test --locked -p heron-repitch --features rt-paranoid --lib
+cargo clippy --locked -p rubberband-sys -p heron-rubberband -p heron-repitch --all-targets -- -D warnings
+```
 
 ### Heron Revox plug-in
 

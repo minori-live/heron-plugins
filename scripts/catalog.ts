@@ -14,6 +14,18 @@ export const revox = {
   aaxIds: null
 } as const
 
+export const repitch = {
+  builtinId: "live.minori.heron.repitch",
+  name: "Heron Repitch",
+  kind: "effect",
+  auType: "aufx",
+  crate: "heron-repitch",
+  slug: "repitch",
+  nativeId: "815F4375B80340989B4A66DB932AB067",
+  fourcc: "HRRP",
+  aaxIds: null
+} as const
+
 export const plugins = [
   {
     builtinId: "live.minori.heron.gain",
@@ -59,7 +71,8 @@ export const plugins = [
     fourcc: "HRMT",
     aaxIds: "48524F4E:48524D54:49534C57"
   },
-  revox
+  revox,
+  repitch
 ] as const
 
 export type Plugin = (typeof plugins)[number]
