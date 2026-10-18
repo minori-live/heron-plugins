@@ -27,15 +27,20 @@ fn repitch_has_its_own_effect_identity_and_persistent_pitch_controls() {
     params.set_plain(1u32, 37.0);
     params.set_plain(2u32, 0.0);
     params.set_plain(3u32, 0.0);
+    params.set_plain(4u32, 75.0);
     let (ids, values) = params.collect_values();
     let stored: Vec<_> = ids.into_iter().zip(values).collect();
-    assert_eq!(stored, vec![(0, -4.0), (1, 37.0), (2, 0.0), (3, 0.0)]);
+    assert_eq!(
+        stored,
+        vec![(0, -4.0), (1, 37.0), (2, 0.0), (3, 0.0), (4, 75.0)]
+    );
     let restored = RepitchParams::default();
     restored.restore_values(&stored);
     assert_eq!(restored.semitones.value(), -4);
     assert_eq!(restored.cents.value(), 37);
     assert!(!restored.formant.value());
     assert_eq!(restored.quality.value(), 0);
+    assert!((restored.mix.value() - 75.0).abs() < 1e-6);
     assert!((restored.pitch_shift() + 3.63).abs() < 1e-6);
     assert!(!Arc::ptr_eq(&params.status, &restored.status));
 }

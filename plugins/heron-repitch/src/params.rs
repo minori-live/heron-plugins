@@ -51,6 +51,6 @@ impl RepitchParams {
 
     /// Wet fraction in \[0, 1\] from the 0–100% Mix parameter.
     pub(crate) fn wet_mix(&self) -> f32 {
-        (self.mix.value() as f32 / 100.0).clamp(0.0, 1.0)
+        (self.mix.value() / 100.0).clamp(0.0, 1.0)
     }
 }

@@ -214,11 +214,7 @@ fn mix_zero_returns_latency_aligned_dry_impulse() {
     let mut offset = 0;
     while offset < total {
         let end = (offset + block).min(total);
-        output.extend(process_mono(
-            &mut state,
-            &params,
-            &input[offset..end],
-        ));
+        output.extend(process_mono(&mut state, &params, &input[offset..end]));
         offset = end;
     }
     for (index, sample) in output.iter().enumerate() {

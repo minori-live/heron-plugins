@@ -101,7 +101,9 @@ impl Field {
         ((self.quantize(value) - self.minimum()) / span).clamp(0.0, 1.0)
     }
     fn plain(self, normalized: f64) -> f64 {
-        self.quantize(self.minimum() + normalized.clamp(0.0, 1.0) * (self.maximum() - self.minimum()))
+        self.quantize(
+            self.minimum() + normalized.clamp(0.0, 1.0) * (self.maximum() - self.minimum()),
+        )
     }
     fn quantize(self, value: f64) -> f64 {
         value.round().clamp(self.minimum(), self.maximum())
@@ -371,8 +373,10 @@ impl RepitchUi {
 fn parse_value(field: Field, draft: &str) -> Option<f64> {
     let draft = draft.trim().trim_end_matches('%').trim();
     let value = draft.parse::<f64>().ok()?;
-    (value.is_finite() && value.fract() == 0.0 && (field.minimum()..=field.maximum()).contains(&value))
-        .then_some(value)
+    (value.is_finite()
+        && value.fract() == 0.0
+        && (field.minimum()..=field.maximum()).contains(&value))
+    .then_some(value)
 }
 
 fn input_style(invalid: bool) -> impl Fn(&Theme, text_input::Status) -> text_input::Style {
