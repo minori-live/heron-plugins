@@ -49,6 +49,43 @@ async function exists(path: string) {
   )
 }
 
+function sleepMs(ms: number) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+/** Shallow-fetch the pinned ORT release. Prefer the release tag: GitHub's
+ *  upload-pack reliably advertises refs/tags/*, while bare-SHA --depth=1
+ *  fetches intermittently fail with "not our ref" even when the commit is the
+ *  tag tip (seen on Windows Test runners). */
+function fetchPinnedOnnxRuntimeSource(source: string) {
+  const tag = `v${version}`
+  const attempts = 4
+  let lastError: unknown
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      run("git", ["fetch", "--depth=1", "origin", "tag", tag], { cwd: source })
+      run("git", ["checkout", "--force", "--detach", "FETCH_HEAD"], { cwd: source })
+      return
+    } catch (error) {
+      lastError = error
+      try {
+        // Rare fallback if the tag ref moves or upload-pack flaps: retry the
+        // pinned SHA once per attempt before backing off.
+        run("git", ["fetch", "--depth=1", "origin", sourceCommit], { cwd: source })
+        run("git", ["checkout", "--force", "--detach", sourceCommit], { cwd: source })
+        return
+      } catch (shaError) {
+        lastError = shaError
+      }
+      if (attempt === attempts) break
+      sleepMs(1_000 * 2 ** (attempt - 1))
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`ONNX Runtime source fetch failed after ${attempts} attempts`)
+}
+
 async function digest(path: string) {
   return createHash("sha256")
     .update(await readFile(path))
@@ -148,8 +185,7 @@ async function sourceRuntime(platform: "windows-x64" | "macos-x64") {
     if (windows) run("git", ["config", "core.longpaths", "true"], { cwd: source })
     run("git", ["remote", "add", "origin", repository], { cwd: source })
   }
-  run("git", ["fetch", "--depth=1", "origin", sourceCommit], { cwd: source })
-  run("git", ["checkout", "--detach", sourceCommit], { cwd: source })
+  fetchPinnedOnnxRuntimeSource(source)
   if (
     run("git", ["rev-parse", "HEAD"], { cwd: source, capture: true }).trim() !== sourceCommit ||
     run("git", ["status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all"], {

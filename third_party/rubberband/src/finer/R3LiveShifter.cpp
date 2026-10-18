@@ -245,14 +245,14 @@ R3LiveShifter::measureResamplerDelay()
 
     int bs = getBlockSize();
     size_t need = size_t(bs) * size_t(m_parameters.channels);
-    // createResamplers sizes these; never grow here (may run under RT
-    // constraints via setPitchScale while m_firstProcess).
+    // createResamplers sizes these; never allocate here — setPitchScale may
+    // re-enter while m_firstProcess under realtime allocation checks.
     if (m_delayMeasureIn.size() < need || m_delayMeasureOut.size() < need) {
-        m_delayMeasureIn.assign(need, 0.f);
-        m_delayMeasureOut.assign(need, 0.f);
-    } else {
-        std::fill_n(m_delayMeasureIn.begin(), need, 0.f);
+        m_log.log(0, "R3LiveShifter::measureResamplerDelay: scratch undersized; refusing to allocate");
+        m_initialResamplerDelays = { 0, 0 };
+        return;
     }
+    std::fill_n(m_delayMeasureIn.begin(), need, 0.f);
 
     int incount = m_inResampler->resampleInterleaved
         (m_delayMeasureOut.data(), bs, m_delayMeasureIn.data(), bs, getInRatio(), false);
