@@ -53,37 +53,67 @@ function sleepMs(ms: number) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
 
-/** Shallow-fetch the pinned ORT release. Prefer the release tag: GitHub's
- *  upload-pack reliably advertises refs/tags/*, while bare-SHA --depth=1
- *  fetches intermittently fail with "not our ref" even when the commit is the
- *  tag tip (seen on Windows Test runners). */
-function fetchPinnedOnnxRuntimeSource(source: string) {
+/** Reuse a previously prepared CPU runtime when rust-cache restored one that
+ *  still matches the pinned commit (avoids rebuilding ORT on every Test). */
+async function reusePreparedSourceRuntime(
+  platform: "windows-x64" | "macos-x64"
+): Promise<string | undefined> {
+  const output = join(directory, platform)
+  const library = join(output, runtimeName(platform))
+  const provenancePath = join(output, "runtime-source.json")
+  if (!(await exists(library)) || !(await exists(provenancePath))) return undefined
+  try {
+    const provenance = JSON.parse(await readFile(provenancePath, "utf8")) as {
+      version?: string
+      sourceCommit?: string
+      platform?: string
+      librarySha256?: string
+    }
+    if (
+      provenance.version === version &&
+      provenance.sourceCommit === sourceCommit &&
+      provenance.platform === platform &&
+      provenance.librarySha256 === (await digest(library))
+    )
+      return output
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
+/** Fresh shallow clone of the pinned ORT tag. Never reuse a cached
+ *  onnxruntime-source/.git: Swatinem/rust-cache restores incomplete shallow
+ *  trees under target/revox, and subsequent fetch --depth=1 then fails with
+ *  "couldn't find remote ref" / "not our ref" on Windows Test. */
+async function clonePinnedOnnxRuntimeSource(source: string, windows: boolean) {
   const tag = `v${version}`
   const attempts = 4
   let lastError: unknown
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      run("git", ["fetch", "--depth=1", "origin", "tag", tag], { cwd: source })
-      run("git", ["checkout", "--force", "--detach", "FETCH_HEAD"], { cwd: source })
+      await rm(source, { recursive: true, force: true })
+      await mkdir(dirname(source), { recursive: true })
+      run("git", [
+        ...(windows ? ["-c", "core.longpaths=true"] : []),
+        "clone",
+        "--depth=1",
+        "--branch",
+        tag,
+        repository,
+        source
+      ])
+      if (windows) run("git", ["config", "core.longpaths", "true"], { cwd: source })
       return
     } catch (error) {
       lastError = error
-      try {
-        // Rare fallback if the tag ref moves or upload-pack flaps: retry the
-        // pinned SHA once per attempt before backing off.
-        run("git", ["fetch", "--depth=1", "origin", sourceCommit], { cwd: source })
-        run("git", ["checkout", "--force", "--detach", sourceCommit], { cwd: source })
-        return
-      } catch (shaError) {
-        lastError = shaError
-      }
       if (attempt === attempts) break
       sleepMs(1_000 * 2 ** (attempt - 1))
     }
   }
   throw lastError instanceof Error
     ? lastError
-    : new Error(`ONNX Runtime source fetch failed after ${attempts} attempts`)
+    : new Error(`ONNX Runtime source clone failed after ${attempts} attempts`)
 }
 
 async function digest(path: string) {
@@ -168,6 +198,8 @@ async function sourceRuntime(platform: "windows-x64" | "macos-x64") {
   const windows = platform === "windows-x64"
   if (process.platform !== (windows ? "win32" : "darwin"))
     throw new Error(`${platform} runtime must be built on its native operating system`)
+  const reused = await reusePreparedSourceRuntime(platform)
+  if (reused) return reused
   const pythonCommand = process.env.REVOX_PYTHON ?? (windows ? "python" : "python3")
   const windowsTools = windows ? await windowsBuildTools() : undefined
   const python = run(
@@ -179,13 +211,7 @@ async function sourceRuntime(platform: "windows-x64" | "macos-x64") {
     { capture: true }
   ).trim()
   const source = join(directory, "onnxruntime-source")
-  if (!(await exists(join(source, ".git")))) {
-    await mkdir(source, { recursive: true })
-    run("git", ["init", source])
-    if (windows) run("git", ["config", "core.longpaths", "true"], { cwd: source })
-    run("git", ["remote", "add", "origin", repository], { cwd: source })
-  }
-  fetchPinnedOnnxRuntimeSource(source)
+  await clonePinnedOnnxRuntimeSource(source, windows)
   if (
     run("git", ["rev-parse", "HEAD"], { cwd: source, capture: true }).trim() !== sourceCommit ||
     run("git", ["status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all"], {
@@ -194,6 +220,8 @@ async function sourceRuntime(platform: "windows-x64" | "macos-x64") {
     }).trim()
   )
     throw new Error("ONNX Runtime source is not the clean pinned release commit")
+  // Drop any rust-cache-restored CMake tree that still points at the wiped source.
+  await rm(join(directory, `${platform}-build`), { recursive: true, force: true })
   run(
     "git",
     [
