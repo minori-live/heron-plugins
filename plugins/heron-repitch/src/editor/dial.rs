@@ -72,7 +72,11 @@ impl canvas::Program<Message<RepitchMessage>> for Dial {
         heron_plugin_ui::rotary::draw(
             &mut frame,
             self.field.normalized(self.value) as f32,
-            Some(0.5),
+            if self.field.bipolar() {
+                Some(0.5)
+            } else {
+                None
+            },
             true,
             hovered,
         );

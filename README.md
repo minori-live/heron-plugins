@@ -15,7 +15,7 @@ shifter with the same coarse/fine pitch controls.
 | Heron Sine      | MIDI sine synthesizer                                                                            |
 | Heron Metronome | MIDI click instrument; note 84 accents and note 72 beats                                         |
 | Heron Revox     | Neural vocoder for vocal phase cleanup and lower-loss pitch shifting                             |
-| Heron Repitch   | Realtime Rubber Band pitch shifter (formant preserve, Faster/Finer windows)                      |
+| Heron Repitch   | Realtime Rubber Band pitch shifter (formant, Faster/Finer, Mix)                                  |
 
 ## Formats and platforms
 
@@ -102,8 +102,11 @@ release credentials and produces signed, notarized macOS downloads.
 
 Repitch links the vendored Rubber Band Library 4.0.0 single-file amalgamation
 (`third_party/rubberband`) through `crates/rubberband-sys` and
-`crates/heron-rubberband`. No extra model download is required. Release bundles
-stage Rubber Band's GPL notices beside the shared third-party license tree.
+`crates/heron-rubberband`. Host latency is Rubber Band LiveShifter
+`getStartDelay()` for the active Faster/Finer mode; Mix (0–100%, default 100%)
+delays the dry path by that same reported latency. No extra model download is
+required. Release bundles stage Rubber Band's GPL notices beside the shared
+third-party license tree.
 
 ### Heron Revox
 

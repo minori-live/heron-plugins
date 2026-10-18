@@ -197,11 +197,16 @@ is part of this suite.
 
 `plugins/heron-repitch` is a realtime pitch shifter using Rubber Band's
 `RubberBandLiveShifter` (v4 R3-live). It mirrors Revox's semitone/cents editor
-chrome and adds formant preservation plus Faster/Finer window quality. Latency
-is `getStartDelay()` (reported via `PluginLogic::latency` / `tail`). Engines for
-both qualities and mono/stereo are prepared in `reset` so the audio callback
-does not allocate. The Stretcher surface in `crates/heron-rubberband` remains
-available for Heron's resampling PR without a second vendor tree.
+chrome and adds formant preservation, Faster/Finer window quality, and a
+0–100% Dry/Wet Mix (default 100% wet). Latency is exactly Rubber Band's
+`getStartDelay()` for the currently selected Quality and pitch (queried after
+construction or reconfiguration; no separate theoretical formula). Host
+`PluginLogic::latency` / `tail` track that value, so Quality or sample-rate
+changes notify the host through Truce's usual latency-change path. The Mix dry
+path is delayed by the same reported latency. Engines for both qualities and
+mono/stereo are prepared in `reset` so the audio callback does not allocate.
+The Stretcher surface in `crates/heron-rubberband` remains available for
+Heron's resampling work without a second vendor tree.
 
 ## Heron Revox
 

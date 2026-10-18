@@ -147,6 +147,9 @@ impl LivePitchShifter {
             }
             return Err(PrepareError::EmptyBlock);
         }
+        // Query Rubber Band's own start delay after construction with the
+        // initial pitch scale already applied (see getStartDelay in
+        // R3LiveShifter.cpp). Do not invent a separate theoretical formula.
         // SAFETY: pitch scale was set before querying start delay.
         let start_delay = unsafe { ffi::rubberband_live_get_start_delay(state) } as usize;
         // Rings sized for one engine block plus one worst-case host block so
@@ -183,13 +186,17 @@ impl LivePitchShifter {
         self.block_size
     }
 
+    /// Rubber Band `getStartDelay()` for the current pitch scale / options.
+    ///
+    /// Always re-queries the native shifter so pitch changes are reflected.
     pub fn start_delay(&self) -> usize {
-        self.start_delay
+        // SAFETY: exclusive owned LiveShifter; matches RubberBandLiveShifter::getStartDelay.
+        unsafe { ffi::rubberband_live_get_start_delay(self.state) as usize }
     }
 
-    /// Host-reported latency in samples (Rubber Band start delay).
+    /// Host-reported latency in samples — exactly Rubber Band's start delay.
     pub fn latency_samples(&self) -> u32 {
-        self.start_delay as u32
+        self.start_delay() as u32
     }
 
     pub fn channels(&self) -> usize {
@@ -207,6 +214,9 @@ impl LivePitchShifter {
         unsafe {
             ffi::rubberband_live_set_pitch_scale(self.state, scale);
         }
+        // Pitch scale is an input to getStartDelay(); refresh the cached peek
+        // used only for prepare-time capacity sizing.
+        self.start_delay = self.start_delay();
     }
 
     /// RT-safe formant option toggle.

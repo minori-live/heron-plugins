@@ -53,6 +53,7 @@ fn render_shifted_sine(semitones: f64) -> (Vec<f32>, u32, f64) {
             plugin.params().set_plain(1u32, cents);
             plugin.params().set_plain(2u32, 1.0);
             plugin.params().set_plain(3u32, 1.0);
+            plugin.params().set_plain(4u32, 100.0);
         })
         .run();
     let latency = result.plugin.latency();
@@ -96,6 +97,7 @@ fn parameter_state_round_trips_through_collect_and_restore() {
     params.set_plain(1u32, -40.0);
     params.set_plain(2u32, 0.0);
     params.set_plain(3u32, 0.0);
+    params.set_plain(4u32, 35.0);
     let (ids, values) = params.collect_values();
     let stored: Vec<_> = ids.into_iter().zip(values).collect();
     let restored = RepitchParams::default();
@@ -104,6 +106,7 @@ fn parameter_state_round_trips_through_collect_and_restore() {
     assert_eq!(restored.cents.value(), -40);
     assert!(!restored.formant.value());
     assert_eq!(restored.quality.value(), 0);
+    assert!((restored.mix.value() - 35.0).abs() < 1.0e-6);
     assert!(!Arc::ptr_eq(&params.editor_state, &restored.editor_state));
 }
 
@@ -132,6 +135,8 @@ fn process_is_allocation_free_after_reset_and_stays_finite() {
                 script.wait_ms(20);
                 script.set_param(2u32, 0.0);
                 script.wait_ms(20);
+                script.set_param(4u32, 0.5);
+                script.wait_ms(20);
             })
             .run()
     });
@@ -140,17 +145,93 @@ fn process_is_allocation_free_after_reset_and_stays_finite() {
 }
 
 #[test]
-fn reset_reports_live_shifter_latency_to_the_host() {
+fn reset_reports_active_mode_start_delay_to_the_host() {
     let params = RepitchParams::default();
+    assert_eq!(params.quality(), Quality::Finer);
     let mut state = RepitchDspState::default();
     state.reset(&params, 48_000.0, 512);
     let latency = state.latency_samples();
     assert!(latency > 0);
     assert_eq!(params.status.latency_samples(), latency);
-    // LiveShifter start delay is typically tens of milliseconds.
-    let ms = f64::from(latency) / 48.0;
-    assert!(
-        (20.0..200.0).contains(&ms),
-        "unexpected latency {latency} samples ({ms} ms)"
+    let expected = state
+        .finer
+        .as_ref()
+        .expect("finer engine")
+        .mono
+        .start_delay() as u32;
+    assert_eq!(latency, expected);
+}
+
+fn process_mono(state: &mut RepitchDspState, params: &RepitchParams, input: &[f32]) -> Vec<f32> {
+    let frames = input.len();
+    let mut output = vec![0.0; frames];
+    let inputs = [input];
+    let mut outputs = [output.as_mut_slice()];
+    let mut buffer = AudioBuffer::from_slices_checked(&inputs, &mut outputs, frames);
+    state.process(params, &mut buffer);
+    output
+}
+
+#[test]
+fn quality_change_updates_reported_latency_to_active_mode() {
+    let params = RepitchParams::default();
+    let mut state = RepitchDspState::default();
+    state.reset(&params, 48_000.0, 512);
+    let finer = state.latency_samples();
+    params.set_plain(3u32, 0.0);
+    assert_eq!(params.quality(), Quality::Faster);
+    let faster_direct = state
+        .faster
+        .as_ref()
+        .expect("faster engine")
+        .mono
+        .start_delay() as u32;
+    assert_ne!(
+        finer, faster_direct,
+        "Faster and Finer should report different start delays at 48 kHz"
     );
+
+    let input = vec![0.1_f32; 128];
+    let _ = process_mono(&mut state, &params, &input);
+    assert_eq!(state.latency_samples(), faster_direct);
+    assert_eq!(params.status.latency_samples(), faster_direct);
+}
+
+#[test]
+fn mix_zero_returns_latency_aligned_dry_impulse() {
+    let params = RepitchParams::default();
+    params.set_plain(4u32, 0.0);
+    let mut state = RepitchDspState::default();
+    state.reset(&params, 48_000.0, 512);
+    let latency = state.latency_samples() as usize;
+    assert!(latency > 0);
+
+    let total = latency + 8;
+    let mut input = vec![0.0_f32; total];
+    input[0] = 1.0;
+    let mut output = Vec::with_capacity(total);
+    let block = 128;
+    let mut offset = 0;
+    while offset < total {
+        let end = (offset + block).min(total);
+        output.extend(process_mono(
+            &mut state,
+            &params,
+            &input[offset..end],
+        ));
+        offset = end;
+    }
+    for (index, sample) in output.iter().enumerate() {
+        if index == latency {
+            assert!(
+                (sample - 1.0).abs() < 1.0e-5,
+                "dry impulse at {index}: {sample}"
+            );
+        } else {
+            assert!(
+                sample.abs() < 1.0e-5,
+                "unexpected energy at {index}: {sample}"
+            );
+        }
+    }
 }

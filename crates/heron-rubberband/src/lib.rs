@@ -127,4 +127,30 @@ mod tests {
         assert_eq!(stretcher.engine_version(), 3);
         assert!(stretcher.start_delay() > 0);
     }
+
+    #[test]
+    fn reported_latency_equals_rubber_band_start_delay_for_each_mode() {
+        for rate in [44_100u32, 48_000, 96_000] {
+            for quality in [Quality::Faster, Quality::Finer] {
+                let shifter = LivePitchShifter::prepare(
+                    rate,
+                    1,
+                    512,
+                    LiveOptions {
+                        formant_preserved: true,
+                        quality,
+                        channels_together: true,
+                    },
+                    1.0,
+                )
+                .expect("prepare");
+                assert_eq!(
+                    shifter.latency_samples() as usize,
+                    shifter.start_delay(),
+                    "rate={rate} {quality:?}"
+                );
+                assert!(shifter.start_delay() > 0);
+            }
+        }
+    }
 }

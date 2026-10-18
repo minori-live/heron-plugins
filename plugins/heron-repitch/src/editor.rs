@@ -26,7 +26,7 @@ use truce_iced::{
 
 use crate::RepitchParams;
 
-pub const EDITOR_SIZE: (u32, u32) = (520, 320);
+pub const EDITOR_SIZE: (u32, u32) = (640, 320);
 
 /// Per-instance native editor recall/closure revision, excluded from saved state.
 #[derive(Default)]
@@ -47,6 +47,7 @@ impl EditorState {
 pub enum Field {
     Semitones,
     Cents,
+    Mix,
 }
 
 impl Field {
@@ -54,39 +55,68 @@ impl Field {
         match self {
             Self::Semitones => 0,
             Self::Cents => 1,
+            Self::Mix => 4,
+        }
+    }
+    fn bipolar(self) -> bool {
+        matches!(self, Self::Semitones | Self::Cents)
+    }
+    fn minimum(self) -> f64 {
+        match self {
+            Self::Semitones | Self::Cents => -self.maximum(),
+            Self::Mix => 0.0,
         }
     }
     fn maximum(self) -> f64 {
         match self {
             Self::Semitones => 12.0,
-            Self::Cents => 100.0,
+            Self::Cents | Self::Mix => 100.0,
+        }
+    }
+    fn default_value(self) -> f64 {
+        match self {
+            Self::Semitones | Self::Cents => 0.0,
+            Self::Mix => 100.0,
         }
     }
     fn label(self) -> &'static str {
         match self {
             Self::Semitones => "Semitones",
             Self::Cents => "Cents",
+            Self::Mix => "Mix",
         }
     }
     fn unit(self) -> &'static str {
         match self {
             Self::Semitones => "st",
             Self::Cents => "ct",
+            Self::Mix => "%",
         }
     }
     fn normalized(self, value: f64) -> f64 {
-        (self.quantize(value) + self.maximum()) / (2.0 * self.maximum())
+        let span = self.maximum() - self.minimum();
+        if span <= 0.0 {
+            return 0.0;
+        }
+        ((self.quantize(value) - self.minimum()) / span).clamp(0.0, 1.0)
     }
     fn plain(self, normalized: f64) -> f64 {
-        self.quantize((normalized * 2.0 - 1.0) * self.maximum())
+        self.quantize(self.minimum() + normalized.clamp(0.0, 1.0) * (self.maximum() - self.minimum()))
     }
     fn quantize(self, value: f64) -> f64 {
-        value.round().clamp(-self.maximum(), self.maximum())
+        value.round().clamp(self.minimum(), self.maximum())
+    }
+    fn format_readout(self, value: f64) -> String {
+        match self {
+            Self::Semitones | Self::Cents => format!("{value:+.0} {}", self.unit()),
+            Self::Mix => format!("{value:.0} {}", self.unit()),
+        }
     }
     fn input_id(self) -> truce_iced::iced::widget::Id {
         truce_iced::iced::widget::Id::new(match self {
             Self::Semitones => "repitch-semitones-input",
             Self::Cents => "repitch-cents-input",
+            Self::Mix => "repitch-mix-input",
         })
     }
 }
@@ -200,7 +230,7 @@ impl RepitchUi {
                 self.draft.clear();
             }
             Edit::Step(field, delta) => self.single(context, field, self.current(field) + delta),
-            Edit::Reset(field) => self.single(context, field, 0.0),
+            Edit::Reset(field) => self.single(context, field, field.default_value()),
             Edit::Numeric(field) => {
                 self.end(context, false);
                 self.focused = Some(field);
@@ -243,9 +273,13 @@ impl RepitchUi {
             Named::Tab => {
                 self.edit(Edit::Cancel, context);
                 self.focused = Some(match self.focused {
+                    Some(Field::Semitones) if modifiers.shift() => Field::Mix,
                     Some(Field::Semitones) => Field::Cents,
-                    Some(Field::Cents) => Field::Semitones,
-                    None if modifiers.shift() => Field::Cents,
+                    Some(Field::Cents) if modifiers.shift() => Field::Semitones,
+                    Some(Field::Cents) => Field::Mix,
+                    Some(Field::Mix) if modifiers.shift() => Field::Cents,
+                    Some(Field::Mix) => Field::Semitones,
+                    None if modifiers.shift() => Field::Mix,
                     None => Field::Semitones,
                 });
             }
@@ -264,7 +298,7 @@ impl RepitchUi {
                     let step = if modifiers.shift() {
                         match field {
                             Field::Semitones => 3.0,
-                            Field::Cents => 10.0,
+                            Field::Cents | Field::Mix => 10.0,
                         }
                     } else {
                         1.0
@@ -307,7 +341,7 @@ impl RepitchUi {
             )
         } else {
             button(
-                text(format!("{value:+.0} {}", field.unit()))
+                text(field.format_readout(value))
                     .size(type_size::CONTROL)
                     .color(colors.text),
             )
@@ -335,8 +369,10 @@ impl RepitchUi {
 }
 
 fn parse_value(field: Field, draft: &str) -> Option<f64> {
-    let value = draft.trim().parse::<f64>().ok()?;
-    (value.is_finite() && value.fract() == 0.0 && value.abs() <= field.maximum()).then_some(value)
+    let draft = draft.trim().trim_end_matches('%').trim();
+    let value = draft.parse::<f64>().ok()?;
+    (value.is_finite() && value.fract() == 0.0 && (field.minimum()..=field.maximum()).contains(&value))
+        .then_some(value)
 }
 
 fn input_style(invalid: bool) -> impl Fn(&Theme, text_input::Status) -> text_input::Style {
@@ -443,7 +479,8 @@ impl IcedPlugin<RepitchParams> for RepitchUi {
         let controls = Row::new()
             .push(self.control(Field::Semitones, params))
             .push(self.control(Field::Cents, params))
-            .spacing(48)
+            .push(self.control(Field::Mix, params))
+            .spacing(32)
             .align_y(Alignment::Center);
         let formant_on = params.get_plain(2u32) >= 0.5;
         let quality = params.get_plain(3u32).round() as i32;

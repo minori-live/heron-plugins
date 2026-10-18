@@ -1,4 +1,4 @@
-//! Stable automation slots mirrored from Revox, plus formant and quality.
+//! Stable automation slots mirrored from Revox, plus formant, quality, and mix.
 
 use std::sync::Arc;
 use truce::prelude::*;
@@ -25,6 +25,15 @@ pub struct RepitchParams {
     /// always R3-live; this selects the window trade-off without leaving that path.
     #[param(id = 3, name = "Quality", range = "discrete(0, 1)", default = 1)]
     pub quality: IntParam,
+    /// Dry/wet mix: 0% = latency-aligned dry, 100% = fully wet (default).
+    #[param(
+        id = 4,
+        name = "Mix",
+        range = "linear(0, 100)",
+        unit = "%",
+        default = 100
+    )]
+    pub mix: FloatParam,
     #[skip]
     pub status: Arc<ProcessingStatus>,
     #[skip]
@@ -38,5 +47,10 @@ impl RepitchParams {
 
     pub(crate) fn quality(&self) -> Quality {
         Quality::from_discrete(self.quality.value() as i32)
+    }
+
+    /// Wet fraction in \[0, 1\] from the 0–100% Mix parameter.
+    pub(crate) fn wet_mix(&self) -> f32 {
+        (self.mix.value() as f32 / 100.0).clamp(0.0, 1.0)
     }
 }
