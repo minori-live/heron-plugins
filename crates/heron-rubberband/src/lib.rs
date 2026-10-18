@@ -129,6 +129,83 @@ mod tests {
     }
 
     #[test]
+    fn stretcher_rejects_invalid_prepare_and_processes_silence() {
+        assert!(matches!(
+            RealtimeStretcher::prepare(0, 1, StretcherOptions::default(), 1.0, 1.0, 256),
+            Err(PrepareError::InvalidSampleRate)
+        ));
+        assert!(matches!(
+            RealtimeStretcher::prepare(48_000, 0, StretcherOptions::default(), 1.0, 1.0, 256),
+            Err(PrepareError::InvalidChannels)
+        ));
+        let mut stretcher = RealtimeStretcher::prepare(
+            48_000,
+            1,
+            StretcherOptions {
+                engine_finer: false,
+                formant_preserved: true,
+                window_short: true,
+                ..StretcherOptions::default()
+            },
+            1.0,
+            pitch_scale_from_semitones(2.0),
+            256,
+        )
+        .expect("prepare");
+        assert_eq!(stretcher.engine_version(), 2);
+        assert_eq!(stretcher.channels(), 1);
+        stretcher.set_pitch_scale(1.0);
+        stretcher.set_time_ratio(1.0);
+        let input = [0.0_f32; 256];
+        let mut output = [0.0_f32; 256];
+        let in_ptrs = [input.as_ptr()];
+        let out_ptrs = [output.as_mut_ptr()];
+        // SAFETY: planar pointers reference stack buffers for 256 frames.
+        unsafe {
+            stretcher.process(&in_ptrs, 256, false);
+            let _ = stretcher.available();
+            let _ = stretcher.retrieve(&out_ptrs, 256);
+        }
+        stretcher.reset();
+        assert!(stretcher.start_delay() > 0);
+    }
+
+    #[test]
+    fn live_shifter_rejects_invalid_prepare_and_toggles_formant() {
+        assert!(matches!(
+            LivePitchShifter::prepare(0, 1, 256, LiveOptions::default(), 1.0),
+            Err(PrepareError::InvalidSampleRate)
+        ));
+        assert!(matches!(
+            LivePitchShifter::prepare(48_000, 3, 256, LiveOptions::default(), 1.0),
+            Err(PrepareError::InvalidChannels)
+        ));
+        assert!(matches!(
+            LivePitchShifter::prepare(48_000, 1, 0, LiveOptions::default(), 1.0),
+            Err(PrepareError::InvalidMaxBlock)
+        ));
+        let mut shifter = LivePitchShifter::prepare(
+            48_000,
+            2,
+            256,
+            LiveOptions {
+                formant_preserved: false,
+                quality: Quality::Faster,
+                channels_together: true,
+            },
+            1.0,
+        )
+        .expect("prepare");
+        assert_eq!(shifter.channels(), 2);
+        assert!(shifter.block_size() > 0);
+        shifter.set_formant_preserved(true);
+        shifter.set_formant_preserved(true); // no-op second toggle
+        shifter.set_pitch_scale(1.0); // unchanged after warm
+        shifter.reset();
+        assert!(shifter.latency_samples() > 0);
+    }
+
+    #[test]
     fn reported_latency_equals_rubber_band_start_delay_for_each_mode() {
         for rate in [44_100u32, 48_000, 96_000] {
             for quality in [Quality::Faster, Quality::Finer] {
