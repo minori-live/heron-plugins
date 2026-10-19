@@ -150,12 +150,14 @@ repository's C++ VST3 probe and, on macOS, AU probe against the required native
 headers/framework. This workspace does not generate Heron's Bindgen or N-API
 bindings.
 
-The tracked `third_party/baseview-truce`, `third_party/truce-gui` and
-`third_party/truce-iced` directories are separate from the downloaded SDK.
-`Cargo.toml` selects these GUI patches through `[patch.crates-io]`. Preserve
+The tracked `third_party/baseview-truce`, `third_party/truce-gui`,
+`third_party/truce-iced` and `third_party/truce-au` directories are separate from
+the downloaded SDK. `Cargo.toml` selects these patches through `[patch.crates-io]`. Preserve
 their licenses and `PATCHES.md` provenance; a clean checkout needs their full
 sources. Keep Truce's pinned wrappers and paired Windows scale/focus patches
-consistent when upgrading them.
+consistent when upgrading them. Revox alone enables the AU adapter's optional
+lifecycle serialization. Release commands build each plugin separately so
+Cargo feature unification does not enable its waiting policy in other components.
 
 `scripts/catalog.ts` owns producer bundle names and manifest identities for
 Gain, EQ, Sine, Metronome, Revox and Repitch. Default plug-in features build
@@ -361,6 +363,15 @@ tone, then repeats the input after a same-rate host reset. Check fixed reported
 latency, finite processed output and the combined pitch shift in both regions.
 The reset must retain loaded same-layout sessions while retiring old-generation
 audio and status; silence-to-tone input must not trigger model unavailability.
+
+The installed AU audio probe, `revox-au-probe` from `fixtures/CMakeLists.txt`,
+includes a concurrent-reset regression. Its host input callback
+holds an active render while another host thread requests Reset, then verifies
+that Reset waits until the render completes and the new timeline produces its
+fixed preroll and shifted wet audio. Revox opts into the vendored AU adapter's
+`serialize-lifecycle` gate so reset cannot clear a callback's timeline while it
+waits for worker output. Run the probe against the same installed component as
+`auval`, followed by a Logic playback-start check.
 
 The editor has two controls: Semitones (-12..12, step 1) and Cents (-100..100,
 step 1), combined additively. Both default to zero and still resynthesize audio.

@@ -48,6 +48,7 @@ async function validate(stage: string, formats: Format[], version: string) {
         })
         if (!result.includes("VALIDATION SUCCEEDED"))
           throw new Error("Heron Revox AU validation failed")
+        run(join(build, "revox-au-probe"), [])
         console.log("Heron Revox AU identity, version and auval passed")
       }
     )

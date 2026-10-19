@@ -3047,8 +3047,6 @@ checksum = "daff143e1baf44634d69c4d030c420f737c20d5fbcff8fc962537161a1a143e9"
 [[package]]
 name = "truce-au"
 version = "6.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9168fc2f0fa9b8f589e89518e200ddb103020652d317a6d24a44214132278aa"
 dependencies = [
  "cc",
  "crossbeam-queue",

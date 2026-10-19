@@ -321,6 +321,17 @@ input. A changed channel layout prepares new sessions on that worker; a changed
 sample rate or reset of a genuinely failed worker replaces the worker and repeats
 model preparation off the audio callback.
 
+Revox's AUv2 dependency enables the vendored Truce adapter's
+`serialize-lifecycle` feature. A per-instance gate serializes native render with
+Initialize, Uninitialize, Reset and Close, covering native buffers as well as
+Rust DSP state. A host reset waits for an active render to finish before changing
+the processing generation. It remains on its calling thread; the adapter does
+not defer allocation or model teardown into a later process block. This prevents
+a playback-start reset from clearing the timeline beneath a callback that is
+waiting for old-generation output. The gate follows Revox's explicit waiting
+contract. Other components' per-plugin release builds leave the feature disabled.
+See the [patch provenance](../../third_party/truce-au/PATCHES.md).
+
 The host receives the constant input-to-output sample offset: host-rate context,
 hop and overlap together require 1.16 seconds of future input, followed by one
 128-sample input-packet buffer. The packet buffer covers every hop's queue
