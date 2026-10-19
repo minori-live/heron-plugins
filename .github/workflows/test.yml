@@ -81,6 +81,7 @@ jobs:
           cargo test --locked -p heron-sine --features rt-paranoid
           cargo test --locked -p heron-metronome --features rt-paranoid
           cargo test --locked -p heron-revox --features rt-paranoid
+          cargo test --locked -p heron-repitch --features rt-paranoid
       - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -42,6 +42,15 @@ au_tag = "Effects"
 vst3_subcategory = "Pitch Shift"
 
 [[plugin]]
+name = "Heron Repitch"
+bundle_id = "repitch"
+crate = "heron-repitch"
+category = "effect"
+fourcc = "HRRP"
+au_tag = "Effects"
+vst3_subcategory = "Pitch Shift"
+
+[[plugin]]
 name = "Heron Metronome"
 bundle_id = "metronome"
 crate = "heron-metronome"

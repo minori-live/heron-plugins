@@ -23,6 +23,10 @@ same-version asset digest changes and automatic downgrades. The Tap reads the
 DMG digest supplied by GitHub's release API and writes it into the Cask;
 synchronization does not download the installer to obtain its SHA-256.
 
+The Tap cask's installed bundle list is owned in `homebrew-tap`. When this suite
+adds plug-ins (Revox, Repitch, …), update that list in the Tap so Homebrew
+installs match the DMG contents.
+
 macOS users can still download format-specific ZIPs manually. Homebrew installs
 both VST3 and AUv2 from the Universal DMG via
 [`minori-live/homebrew-tap`](https://github.com/minori-live/homebrew-tap):

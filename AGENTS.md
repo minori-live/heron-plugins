@@ -1,9 +1,11 @@
 # Agent Guide
 
-Heron Plugins owns Heron Gain, Heron EQ, Heron Sine, Heron Metronome, Heron Revox
-and their shared Rust UI. Revox releases include embedded FCPE/Revox models and
-a bundle-local ONNX Runtime; inference must work from the extracted release archive.
-Prepare its pinned models before workspace Cargo checks; see the environment guide.
+Heron Plugins owns Heron Gain, Heron EQ, Heron Sine, Heron Metronome, Heron Revox,
+Heron Repitch and their shared Rust UI. Revox releases include embedded FCPE/Revox
+models and a bundle-local ONNX Runtime; inference must work from the extracted
+release archive. Prepare its pinned models before workspace Cargo checks; see the
+environment guide. Repitch vendors Rubber Band 4.0.0 under `third_party/rubberband`
+and builds it from source via `crates/rubberband-sys`.
 Heron consumes released VST3 artifacts; this repository also publishes AUv2
 components for macOS. AAX is opt-in and requires the licensed SDK and PACE release
 signing prerequisites described in `agents/docs/ci.md`.
@@ -56,6 +58,7 @@ cargo test --locked -p heron-eq --features rt-paranoid
 cargo test --locked -p heron-sine --features rt-paranoid
 cargo test --locked -p heron-metronome --features rt-paranoid
 cargo test --locked -p heron-revox --features rt-paranoid
+cargo test --locked -p heron-repitch --features rt-paranoid
 ```
 
 Tests must prove plugin-owned behavior: DSP output, MIDI/sample timing, resource

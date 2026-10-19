@@ -1,11 +1,12 @@
 # Heron Plugins
 
 Independently released plug-ins for [Heron](https://heron.minori.live/) and other
-DAWs. Heron Gain, Heron EQ, Heron Sine, Heron Metronome and Heron Revox share one
-suite version and preserve their VST3 identities, parameter IDs and saved states.
-[Heron EQ](https://heron.minori.live/plugins/heron-eq) is the suite's parametric
-equalizer. Revox is a neural-vocoder effect for vocal phase cleanup and pitch
-shifting, including harmonies and stacked vocals.
+DAWs. Heron Gain, Heron EQ, Heron Sine, Heron Metronome, Heron Revox and Heron
+Repitch share one suite version and preserve their VST3 identities, parameter
+IDs and saved states. [Heron EQ](https://heron.minori.live/plugins/heron-eq) is
+the suite's parametric equalizer. Revox is a neural-vocoder effect for vocal
+phase cleanup and pitch shifting; Repitch is a traditional Rubber Band pitch
+shifter with the same coarse/fine pitch controls.
 
 | Plug-in         | Role                                                                                             |
 | --------------- | ------------------------------------------------------------------------------------------------ |
@@ -14,13 +15,14 @@ shifting, including harmonies and stacked vocals.
 | Heron Sine      | MIDI sine synthesizer                                                                            |
 | Heron Metronome | MIDI click instrument; note 84 accents and note 72 beats                                         |
 | Heron Revox     | Neural vocoder for vocal phase cleanup and lower-loss pitch shifting                             |
+| Heron Repitch   | Realtime Rubber Band pitch shifter (formant, Faster/Finer, Mix)                                  |
 
 ## Formats and platforms
 
-The five-plug-in release suite provides VST3 bundles for Windows x64, Linux x64,
-Linux arm64 and universal macOS. macOS also includes AUv2 components and an
-installation disk image. macOS requires 14.2 or later. AAX remains disabled
-until the complete suite's SDK, identities, signing and native validation are ready.
+The release suite provides VST3 bundles for Windows x64, Linux x64, Linux arm64
+and universal macOS. macOS also includes AUv2 components and an installation
+disk image. macOS requires 14.2 or later. AAX remains disabled until the
+complete suite's SDK, identities, signing and native validation are ready.
 
 Revox includes its models and ONNX Runtime 1.31.0 inside every bundle. CPU
 inference requires no GPU driver or Python installation. macOS can use CoreML
@@ -42,13 +44,13 @@ brew install --cask minori-live/tap/heron-plugins
 That cask, maintained in
 [`minori-live/homebrew-tap`](https://github.com/minori-live/homebrew-tap)
 (`heron-plugins`), currently installs the four older plug-ins from the suite DMG.
-Its bundle list needs a separate tap update to install Revox; use the ZIP or DMG
-installation instructions above for Revox.
+Its bundle list needs a separate tap update to install Revox and Repitch; use the
+ZIP or DMG installation instructions above for those plug-ins.
 Quit and restart the DAW after installing. Heron bundles its own checksum-pinned
 VST3 release and upgrades it with application updates.
 
-Install a Revox development build by copying the complete VST3 bundle to
-`~/Library/Audio/Plug-Ins/VST3/` or the AU component to
+Install a Revox or Repitch development build by copying the complete VST3 bundle
+to `~/Library/Audio/Plug-Ins/VST3/` or the AU component to
 `~/Library/Audio/Plug-Ins/Components/`, then restart the DAW. Those bundles use
 ad-hoc signing and are not notarized release downloads.
 
@@ -95,6 +97,16 @@ macOS builds and validates both Intel and Apple Silicon slices; Intel validation
 on Apple Silicon requires Rosetta. Development macOS
 bundles use ad-hoc signing. `node scripts/build.ts --release` requires valid Apple
 release credentials and produces signed, notarized macOS downloads.
+
+### Heron Repitch
+
+Repitch links the vendored Rubber Band Library 4.0.0 single-file amalgamation
+(`third_party/rubberband`) through `crates/rubberband-sys` and
+`crates/heron-rubberband`. Host latency is Rubber Band LiveShifter
+`getStartDelay()` for the active Faster/Finer mode; Mix (0–100%, default 100%)
+delays the dry path by that same reported latency. No extra model download is
+required. Release bundles stage Rubber Band's GPL notices beside the shared
+third-party license tree.
 
 ### Heron Revox
 

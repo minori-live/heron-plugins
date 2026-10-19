@@ -51,6 +51,24 @@ export async function stageLicenses(bundle: string, version: string, commit: str
   }
   await cp(destination, join(resources, "licenses"), { recursive: true })
   await writeFile(join(resources, "THIRD_PARTY_NOTICES.txt"), `${lines.join("\n")}\n`)
+  await stageRubberBandNotices(bundle)
+}
+
+/** Vendored C++ Rubber Band is not a Cargo package; stage its GPL notices explicitly. */
+export async function stageRubberBandNotices(bundle: string) {
+  const resources = join(bundle, "Contents/Resources")
+  const licenses = join(resources, "licenses/rubberband")
+  await mkdir(licenses, { recursive: true })
+  const rubberband = join(root, "third_party/rubberband")
+  await cp(join(rubberband, "COPYING"), join(licenses, "COPYING"))
+  await cp(join(rubberband, "SOURCE.json"), join(licenses, "SOURCE.json"))
+  await appendFile(
+    join(resources, "THIRD_PARTY_NOTICES.txt"),
+    "\nRubber Band Library 4.0.0: GPL-2.0-or-later; see licenses/rubberband/COPYING.\n" +
+      "Homepage: https://breakfastquay.com/rubberband/\n" +
+      "Pinned release: see licenses/rubberband/SOURCE.json.\n" +
+      "Heron Repitch links the single-file amalgamation (RubberBandSingle.cpp).\n"
+  )
 }
 
 export async function stageRevoxModelNotices(bundle: string) {

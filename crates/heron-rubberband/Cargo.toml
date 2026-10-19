@@ -1,0 +1,19 @@
+[package]
+name = "heron-rubberband"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Safe Rubber Band LiveShifter / Stretcher wrappers shared with Heron"
+publish = false
+
+[dependencies]
+rubberband-sys = { path = "../rubberband-sys" }
+thiserror.workspace = true
+
+[dev-dependencies]
+rustfft.workspace = true
+
+[lints]
+workspace = true

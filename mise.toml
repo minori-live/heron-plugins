@@ -31,7 +31,8 @@ run = [
   "cargo test --locked -p heron-eq --features rt-paranoid",
   "cargo test --locked -p heron-sine --features rt-paranoid",
   "cargo test --locked -p heron-metronome --features rt-paranoid",
-  "cargo test --locked -p heron-revox --features rt-paranoid"
+  "cargo test --locked -p heron-revox --features rt-paranoid",
+  "cargo test --locked -p heron-repitch --features rt-paranoid"
 ]
 
 [tasks."check-fast"]

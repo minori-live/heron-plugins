@@ -25,15 +25,16 @@ the supported editor attachment lifecycle. This repository owns the plug-in's
 processing, parameters, state interpretation, native editor and release bundles.
 It must remain usable without Heron's application services or source tree.
 
-| Owner                                                             | Responsibility                                                                                      |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `plugins/heron-gain`, `heron-sine`, `heron-metronome`, `heron-eq` | Stable plug-in identity, parameter contract, processor and editor composition                       |
-| `crates/plugin-dsp`                                               | Runtime-independent EQ configuration, coefficients, response and processing                         |
-| `crates/iced-ui`                                                  | Rust semantic palettes, spacing and typography roles                                                |
-| `plugins/heron-plugin-ui`                                         | Shared plug-in visual primitives and parameter-message adapters                                     |
-| Pinned Truce adapters                                             | Format ABI, host parameter/state bridge and native editor integration                               |
-| Producer scripts                                                  | Version metadata, staging, universal composition, validation, signing and archives                  |
-| Heron repository                                                  | Its audio runtime, plug-in host/probes, Metronome scheduler, consumer and project integration tests |
+| Owner                                                                              | Responsibility                                                                                      |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `plugins/heron-gain`, `heron-sine`, `heron-metronome`, `heron-eq`, `heron-repitch` | Stable plug-in identity, parameter contract, processor and editor composition                       |
+| `crates/plugin-dsp`                                                                | Runtime-independent EQ configuration, coefficients, response and processing                         |
+| `crates/heron-rubberband` / `crates/rubberband-sys`                                | Vendored Rubber Band LiveShifter/Stretcher bindings shared with Heron resampling work               |
+| `crates/iced-ui`                                                                   | Rust semantic palettes, spacing and typography roles                                                |
+| `plugins/heron-plugin-ui`                                                          | Shared plug-in visual primitives and parameter-message adapters                                     |
+| Pinned Truce adapters                                                              | Format ABI, host parameter/state bridge and native editor integration                               |
+| Producer scripts                                                                   | Version metadata, staging, universal composition, validation, signing and archives                  |
+| Heron repository                                                                   | Its audio runtime, plug-in host/probes, Metronome scheduler, consumer and project integration tests |
 
 Heron Metronome is a MIDI-triggered click instrument. Accent note 84 and beat
 note 72 are part of its input contract. It does not claim a device or run a
@@ -196,6 +197,21 @@ host transport in response to load. Ordinary failures retain an explicit last
 coherent or unavailable state and provide bounded evidence for control/UI
 feedback. A native crash can affect the loading DAW; no helper-recovery promise
 is part of this suite.
+
+## Heron Repitch
+
+`plugins/heron-repitch` is a realtime pitch shifter using Rubber Band's
+`RubberBandLiveShifter` (v4 R3-live). It mirrors Revox's semitone/cents editor
+chrome and adds formant preservation, Faster/Finer window quality, and a
+0–100% Dry/Wet Mix (default 100% wet). Latency is exactly Rubber Band's
+`getStartDelay()` for the currently selected Quality and pitch (queried after
+construction or reconfiguration; no separate theoretical formula). Host
+`PluginLogic::latency` / `tail` track that value, so Quality or sample-rate
+changes notify the host through Truce's usual latency-change path. The Mix dry
+path is delayed by the same reported latency. Engines for both qualities and
+mono/stereo are prepared in `reset` so the audio callback does not allocate.
+The Stretcher surface in `crates/heron-rubberband` remains available for
+Heron's resampling work without a second vendor tree.
 
 ## Heron Revox
 
