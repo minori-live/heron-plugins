@@ -370,8 +370,11 @@ Shift+arrows by three semitones or ten cents, Home resets, and Enter opens numer
 entry. Escape cancels the edit. Host automation and saved states use IDs 0 and 1.
 
 Supported host rates are 44.1/48/88.2/96/176.4/192 kHz, mono or stereo. Reported
-latency is 1.48 seconds plus 128 host samples. Revox targets track processing at
-this stage. It uses 160 ms output steps with model context and a 40 ms overlap;
+latency is the actual input-to-output sample offset: 1.16 seconds of required
+future input plus one 128-sample input-packet buffer. It does not include a
+model-computation allowance; waiting for inference extends a callback without
+advancing the sample timeline. Revox targets track processing at this stage.
+It uses 160 ms output steps with model context and a 40 ms overlap;
 this is not an acceptance claim for transparent vocal seams or live monitoring.
 The worker fixes the ORT `batch` dimension to the active channel count: mono uses
 1, stereo uses 2. Channels from the same window are processed together, retaining

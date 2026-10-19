@@ -324,13 +324,13 @@ fn reset_during_model_warmup_keeps_the_prepared_sessions_and_new_region_processa
 #[test]
 fn retired_worker_status_updates_cannot_overwrite_new_host_configuration() {
     let status = ProcessingStatus::default();
-    let old_generation = status.configure(48_000.0, 71_168);
+    let old_generation = status.configure(48_000.0, 55_808);
     assert!(status.set_for_generation(old_generation, ProcessingState::Ready));
-    let current_generation = status.configure(44_100.0, 65_396);
+    let current_generation = status.configure(44_100.0, 51_284);
     assert!(!status.set_for_generation(old_generation, ProcessingState::Failed));
     assert_eq!(status.state(), ProcessingState::Loading);
     assert_eq!(status.sample_rate(), 44_100.0);
-    assert_eq!(status.latency_samples(), 65_396);
+    assert_eq!(status.latency_samples(), 51_284);
     assert!(status.set_for_generation(current_generation, ProcessingState::Ready));
     assert!(!status.set_for_generation(old_generation, ProcessingState::Loading));
     assert_eq!(status.state(), ProcessingState::Ready);

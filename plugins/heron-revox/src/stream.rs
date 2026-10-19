@@ -26,12 +26,17 @@ impl Geometry {
         let samples = |model_samples: usize| {
             (model_samples as f64 * sample_rate / MODEL_RATE).round() as usize
         };
+        let context = samples(PLUGIN_CONTEXT_SAMPLES);
+        let hop = samples(PLUGIN_HOP_SAMPLES);
+        let overlap = samples(PLUGIN_OVERLAP_SAMPLES);
         Some(Self {
-            context: samples(PLUGIN_CONTEXT_SAMPLES),
-            hop: samples(PLUGIN_HOP_SAMPLES),
-            overlap: samples(PLUGIN_OVERLAP_SAMPLES),
-            // 1.16 s of future input plus 320 ms inference scheduling allowance.
-            latency: (1.48 * sample_rate).round() as usize + crate::worker::PACKET_FRAMES,
+            context,
+            hop,
+            overlap,
+            // A hop needs this future input before rendering. One complete
+            // packet covers every hop's input-queue alignment at every rate.
+            // Inference time does not advance the host's sample timeline.
+            latency: context + hop + overlap + crate::worker::PACKET_FRAMES,
         })
     }
 

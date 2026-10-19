@@ -226,3 +226,6 @@ mod tests;
 
 #[cfg(test)]
 mod reset_tests;
+
+#[cfg(test)]
+mod latency_tests;

@@ -321,10 +321,14 @@ input. A changed channel layout prepares new sessions on that worker; a changed
 sample rate or reset of a genuinely failed worker replaces the worker and repeats
 model preparation off the audio callback.
 
-The host receives a constant latency of 1.48 seconds plus 128 host samples,
-including a 320 ms inference allowance. This first version targets track
-processing, not low-latency live monitoring. The callback sends/receives fixed
-128-frame stereo packets through two preallocated 2048-packet queues. Packets
+The host receives the constant input-to-output sample offset: host-rate context,
+hop and overlap together require 1.16 seconds of future input, followed by one
+128-sample input-packet buffer. The packet buffer covers every hop's queue
+alignment, including rates whose hop is not a multiple of 128. Inference wall
+time extends a callback; it adds no samples to the reported delay. This first
+version targets track processing, not low-latency live monitoring. The callback
+sends/receives fixed 128-frame stereo packets through two preallocated
+2048-packet queues. Packets
 carry a processing generation and absolute input sample positions; stale output
 is discarded, future output is held until its matching delayed position, and
 current-generation input is never dropped. Pitch settings are captured with input
@@ -349,7 +353,7 @@ and join the previous worker off the realtime callback.
 Truce 6.3 prepares DSP at VST3 activation, so the initial latency query must follow
 `setActive(true)`. Heron's VST3 host already uses that order; hosts that only query
 before activation are not covered by this development validation. The packaged
-audio probe follows activation, checks 71168 samples at 48 kHz and measures the
+audio probe follows activation, checks 55808 samples at 48 kHz and measures the
 combined pitch shift through the actual native binary.
 
 The editor reuses Heron EQ's shared rotary drawing, chrome and palette. Stable
