@@ -151,13 +151,15 @@ headers/framework. This workspace does not generate Heron's Bindgen or N-API
 bindings.
 
 The tracked `third_party/baseview-truce`, `third_party/truce-gui`,
-`third_party/truce-iced` and `third_party/truce-au` directories are separate from
+`third_party/truce-iced`, `third_party/truce-au` and `third_party/truce-core` directories are separate from
 the downloaded SDK. `Cargo.toml` selects these patches through `[patch.crates-io]`. Preserve
 their licenses and `PATCHES.md` provenance; a clean checkout needs their full
 sources. Keep Truce's pinned wrappers and paired Windows scale/focus patches
 consistent when upgrading them. Revox alone enables the AU adapter's optional
 lifecycle serialization. Release commands build each plugin separately so
 Cargo feature unification does not enable its waiting policy in other components.
+The paired AU/core preparation patch carries negotiated main-bus widths without
+changing the public AU callback table; keep both patches together.
 
 `scripts/catalog.ts` owns producer bundle names and manifest identities for
 Gain, EQ, Sine, Metronome, Revox and Repitch. Default plug-in features build
@@ -382,16 +384,24 @@ entry. Escape cancels the edit. Host automation and saved states use IDs 0 and 1
 
 Supported host rates are 44.1/48/88.2/96/176.4/192 kHz, mono or stereo. Reported
 latency is the actual input-to-output sample offset: 1.16 seconds of required
-future input plus one 128-sample input-packet buffer. It does not include a
-model-computation allowance; waiting for inference extends a callback without
-advancing the sample timeline. Revox targets track processing at this stage.
-It uses 160 ms output steps with model context and a 40 ms overlap;
+future input, a fixed one-hop (160 ms) wet output prefill, and one 128-sample
+input-packet buffer. At 48 kHz this is 63,488 samples. The queued wet hop allows
+following windows to render while callbacks advance through buffered audio.
+The offset is independent of measured computation time; waiting for inference
+extends a callback without advancing the sample timeline or changing the delay.
+Revox targets track processing at this stage. It uses 160 ms output steps with
+model context and a 40 ms overlap;
 this is not an acceptance claim for transparent vocal seams or live monitoring.
 The worker fixes the ORT `batch` dimension to the active channel count: mono uses
 1, stereo uses 2. Channels from the same window are processed together, retaining
 independent features, pitch and excitation; channels are never summed. It does
-not wait for future windows to assemble a batch or add batching latency. Session
-preparation and warm-up occur on the worker after the layout is known.
+not wait for future windows to assemble a batch or add batching latency. AUv2
+Initialize and Reset pass the validated mono/stereo layout to Revox. The calling
+control thread waits for worker preparation to finish, so model loading and
+warm-up complete before AU initialization returns and the first render reuses
+that batch. Formats that do not supply negotiated widths during reset retain
+first-packet preparation on the worker. Initialization time does not enter the
+reported sample offset.
 Same-rate host resets retain a live worker and its loaded sessions when the
 channel layout stays the same. Packets carry processing generations; the worker
 retires old-generation input/output and starts a fresh timeline with cleared
@@ -399,7 +409,10 @@ overlap, pitch, phase and noise histories. Old-generation publication stops
 waiting for output queue capacity, and atomically correlated status prevents
 its completion or error from changing the new generation's state. Model
 preparation and warm-up repeat only for a changed channel layout/rate or recovery
-from a genuine worker failure.
+from a genuine worker failure. A matching prepared layout resets without
+allocation or a worker preparation request. A changed known layout uses a bounded
+worker control request and finishes preparation before returning; preparation
+does not enqueue fake audio or prepare both batches speculatively.
 Successive windows reuse accepted unshifted pitch, confidence, voicing and
 validity for the historical prefix, including the overlap and its interpolation
 boundary. The current shift applies to the cached unshifted pitch. Each channel

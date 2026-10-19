@@ -95,7 +95,7 @@ fn prepared_with_capacity(
     let mut state = RevoxDspState::default();
     // Initialize the real host configuration, then replace its idle worker at
     // the model boundary. No input has been queued, so it cannot load a model.
-    state.reset(params, 48_000.0);
+    state.reset(params, 48_000.0, None);
     let geometry = Geometry::new(48_000.0).unwrap();
     let mut in_flight = in_flight;
     let worker = Worker::with_factory(
@@ -197,7 +197,7 @@ fn same_rate_reset_reuses_models_but_starts_fresh_audio_controls_and_source_hist
 
     params.set_plain(0, 2.0);
     params.set_plain(1, 50.0);
-    state.reset(&params, 48_000.0);
+    state.reset(&params, 48_000.0, None);
     assert!(Arc::ptr_eq(state.lane.as_ref().unwrap(), &original_lane));
     assert_ne!(params.status.generation(), old_generation);
     assert_eq!(state.latency, latency);
@@ -219,7 +219,7 @@ fn same_rate_reset_reuses_models_but_starts_fresh_audio_controls_and_source_hist
     assert_eq!(preparation.warmups.load(Ordering::Relaxed), 2);
 
     // A rate change replaces the worker and publishes that rate's latency.
-    state.reset(&params, 44_100.0);
+    state.reset(&params, 44_100.0, None);
     assert!(!Arc::ptr_eq(state.lane.as_ref().unwrap(), &original_lane));
     assert!(original_lane.stop.load(Ordering::Acquire));
     assert_eq!(params.status.sample_rate(), 44_100.0);
@@ -265,7 +265,7 @@ fn reset_during_old_inference_retires_its_result_or_failure_without_poisoning_ne
             );
         }
         let old_generation = params.status.generation();
-        state.reset(&params, 48_000.0);
+        state.reset(&params, 48_000.0, None);
         assert!(Arc::ptr_eq(state.lane.as_ref().unwrap(), &lane));
         assert_ne!(params.status.generation(), old_generation);
         assert_eq!(preparation.warmups.load(Ordering::Relaxed), 1);
@@ -309,7 +309,7 @@ fn reset_during_model_warmup_keeps_the_prepared_sessions_and_new_region_processa
         .expect("model warmup never started");
     assert_eq!(params.status.state(), ProcessingState::Loading);
     let old_generation = params.status.generation();
-    state.reset(&params, 48_000.0);
+    state.reset(&params, 48_000.0, None);
     assert!(Arc::ptr_eq(state.lane.as_ref().unwrap(), &lane));
     assert_ne!(params.status.generation(), old_generation);
     release_send.send(()).unwrap();
@@ -324,16 +324,23 @@ fn reset_during_model_warmup_keeps_the_prepared_sessions_and_new_region_processa
 #[test]
 fn retired_worker_status_updates_cannot_overwrite_new_host_configuration() {
     let status = ProcessingStatus::default();
-    let old_generation = status.configure(48_000.0, 55_808);
+    let (old_generation, previous) = status.configure(48_000.0, 63_488);
+    assert_eq!(previous, ProcessingState::Loading);
     assert!(status.set_for_generation(old_generation, ProcessingState::Ready));
-    let current_generation = status.configure(44_100.0, 51_284);
+    let (current_generation, previous) = status.configure(44_100.0, 58_340);
+    assert_eq!(previous, ProcessingState::Ready);
     assert!(!status.set_for_generation(old_generation, ProcessingState::Failed));
     assert_eq!(status.state(), ProcessingState::Loading);
     assert_eq!(status.sample_rate(), 44_100.0);
-    assert_eq!(status.latency_samples(), 51_284);
+    assert_eq!(status.latency_samples(), 58_340);
     assert!(status.set_for_generation(current_generation, ProcessingState::Ready));
     assert!(!status.set_for_generation(old_generation, ProcessingState::Loading));
     assert_eq!(status.state(), ProcessingState::Ready);
+    assert!(status.set_for_generation(current_generation, ProcessingState::Failed));
+    let (next_generation, previous) = status.configure(44_100.0, 58_340);
+    assert_eq!(previous, ProcessingState::Failed);
+    assert_ne!(next_generation, current_generation);
+    assert!(!status.set_for_generation(current_generation, ProcessingState::Ready));
 }
 
 fn wait_until(label: &str, condition: impl Fn() -> bool) {
@@ -359,7 +366,7 @@ fn reset_releases_old_output_publication_without_waiting_for_callback_retirement
     });
     assert_eq!(params.status.state(), ProcessingState::Ready);
     let old_generation = params.status.generation();
-    state.reset(&params, 48_000.0);
+    state.reset(&params, 48_000.0, None);
     assert!(Arc::ptr_eq(state.lane.as_ref().unwrap(), &lane));
     assert_ne!(params.status.generation(), old_generation);
     assert_eq!(params.status.state(), ProcessingState::Loading);

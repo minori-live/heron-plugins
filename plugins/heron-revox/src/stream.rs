@@ -29,14 +29,17 @@ impl Geometry {
         let context = samples(PLUGIN_CONTEXT_SAMPLES);
         let hop = samples(PLUGIN_HOP_SAMPLES);
         let overlap = samples(PLUGIN_OVERLAP_SAMPLES);
+        let required_future = context + hop + overlap;
+        let wet_prefill = hop;
         Some(Self {
             context,
             hop,
             overlap,
-            // A hop needs this future input before rendering. One complete
-            // packet covers every hop's input-queue alignment at every rate.
-            // Inference time does not advance the host's sample timeline.
-            latency: context + hop + overlap + crate::worker::PACKET_FRAMES,
+            // Retain one processed hop in the output timeline so the worker can
+            // synthesize the next hop while callbacks advance through wet audio.
+            // The input packet covers every hop's queue alignment at every rate.
+            // These are actual sample buffers, independent of inference time.
+            latency: required_future + wet_prefill + crate::worker::PACKET_FRAMES,
         })
     }
 

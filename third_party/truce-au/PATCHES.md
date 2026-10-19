@@ -1,4 +1,4 @@
-# Heron patch: Revox AU lifecycle serialization
+# Heron patches: Revox AU preparation and lifecycle serialization
 
 Source: published `truce-au` **6.3.0**, using its normalized Cargo manifest.
 
@@ -14,6 +14,19 @@ commit's license (Git blob `b759333b753ac8483217e2983fe0afe804c96b6a`).
 Registry cache markers, the packaged lockfile, VCS metadata and the unused
 original Cargo manifest are omitted; the published VCS provenance is recorded
 above.
+
+## Negotiated main-bus preparation
+
+AUv2 Initialize and Reset forward the host's validated main input/output widths
+through a private callback registered by the Rust adapter. The callback builds
+`AudioConfig` with the paired vendored `truce-core` extension
+`main_bus_channels: Some((input, output))` before invoking plugin reset. This
+lets Revox prepare only the selected mono or stereo model batch before rendering.
+The supported-layout list is not used as a substitute for the negotiated layout.
+
+The bridge is internal to the native module. The public `AuCallbacks` table,
+`TRUCE_AU_ABI_VERSION`, shared shim headers and AUv3 reset path remain unchanged.
+The published reset callback still supplies an unknown layout (`None`).
 
 ## Opt-in AUv2 lifecycle gate
 
@@ -64,7 +77,6 @@ and actual +3.5-semitone processed audio. Its process deadline bounds a failing
 test; it does not change plugin audio behavior. Run this packaged AU audio probe
 alongside `auval`, and verify playback start in Logic.
 
-Remove the patch after an upstream release supplies equivalent lifecycle
-serialization and these installed-component and Logic playback regressions
-pass with that release. Rust adapter sources and the format callback ABI remain
-the published 6.3.0 versions.
+Remove the paired AU/core patches after an upstream release supplies negotiated
+layout at preparation time and equivalent lifecycle serialization, and these
+installed-component and Logic playback regressions pass with that release.

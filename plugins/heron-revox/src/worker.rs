@@ -10,6 +10,7 @@ use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
+        mpsc::{self, Receiver, SyncSender},
     },
     thread::{self, JoinHandle},
     time::Duration,
@@ -64,7 +65,15 @@ impl Lane {
 
 pub(crate) struct Worker {
     pub lane: Arc<Lane>,
+    prepare: SyncSender<Preparation>,
+    status: Arc<ProcessingStatus>,
     thread: Option<JoinHandle<()>>,
+}
+
+struct Preparation {
+    generation: u64,
+    channels: usize,
+    complete: SyncSender<bool>,
 }
 
 impl Worker {
@@ -72,14 +81,20 @@ impl Worker {
         sample_rate: f64,
         geometry: Geometry,
         status: Arc<ProcessingStatus>,
+        initial_channels: Option<usize>,
     ) -> Option<Self> {
-        Self::spawn(
+        let generation = status.generation();
+        let worker = Self::spawn(
             sample_rate,
             geometry,
             status,
             Arc::new(Lane::new()),
             models::load,
-        )
+        )?;
+        if let Some(channels) = initial_channels {
+            worker.prepare_layout(channels, generation);
+        }
+        Some(worker)
     }
 
     fn spawn<R: Renderer + 'static>(
@@ -93,14 +108,24 @@ impl Worker {
             .store(status.generation(), Ordering::Release);
         let shared = lane.clone();
         let worker_status = status.clone();
+        let (prepare, requests) = mpsc::sync_channel(1);
         let thread = thread::Builder::new()
             .name("heron-revox".into())
             .spawn(move || {
-                run(&shared, &worker_status, sample_rate, geometry, load);
+                run(
+                    &shared,
+                    &worker_status,
+                    sample_rate,
+                    geometry,
+                    requests,
+                    load,
+                );
             });
         match thread {
             Ok(thread) => Some(Self {
                 lane,
+                prepare,
+                status,
                 thread: Some(thread),
             }),
             Err(_) => {
@@ -114,6 +139,24 @@ impl Worker {
         self.thread
             .as_ref()
             .is_some_and(|thread| !thread.is_finished())
+    }
+
+    /// Called only during host preparation, before audio processing resumes.
+    /// The new generation retires any old publisher before this request waits.
+    pub fn prepare_layout(&self, channels: usize, generation: u64) {
+        self.lane.generation.store(generation, Ordering::Release);
+        let (complete, result) = mpsc::sync_channel(1);
+        let request = Preparation {
+            generation,
+            channels,
+            complete,
+        };
+        let ready = self.prepare.send(request).is_ok() && result.recv().is_ok_and(|ready| ready);
+        if !ready {
+            let _ = self
+                .status
+                .set_for_generation(generation, ProcessingState::Failed);
+        }
     }
 
     #[cfg(test)]
@@ -133,6 +176,21 @@ impl Worker {
         )
         .unwrap()
     }
+
+    #[cfg(test)]
+    pub fn with_prepared_factory<R: Renderer + 'static>(
+        sample_rate: f64,
+        geometry: Geometry,
+        status: Arc<ProcessingStatus>,
+        queue_packets: usize,
+        channels: usize,
+        load: impl FnMut(usize) -> Result<R, DspError> + Send + 'static,
+    ) -> Self {
+        let generation = status.generation();
+        let worker = Self::with_factory(sample_rate, geometry, status, queue_packets, load);
+        worker.prepare_layout(channels, generation);
+        worker
+    }
 }
 
 fn run<R: Renderer>(
@@ -140,6 +198,7 @@ fn run<R: Renderer>(
     status: &ProcessingStatus,
     sample_rate: f64,
     geometry: Geometry,
+    requests: Receiver<Preparation>,
     mut load: impl FnMut(usize) -> Result<R, DspError>,
 ) {
     let mut channels = 0;
@@ -147,6 +206,32 @@ fn run<R: Renderer>(
     let mut failed_generation = None;
     let mut stream: Option<Stream<R>> = None;
     while !lane.stop.load(Ordering::Acquire) {
+        if let Ok(request) = requests.try_recv() {
+            if request.generation != lane.generation.load(Ordering::Acquire) {
+                let _ = request.complete.send(false);
+                continue;
+            }
+            generation = request.generation;
+            failed_generation = None;
+            if stream.is_none() || channels != request.channels {
+                let _ = status.set_for_generation(generation, ProcessingState::Loading);
+                drop(stream.take());
+                stream = prepare(&mut load, request.channels, sample_rate, geometry).ok();
+                channels = request.channels;
+            } else if let Some(stream) = stream.as_mut() {
+                stream.reset();
+            }
+            let ready = stream.is_some();
+            let state = if ready {
+                ProcessingState::Ready
+            } else {
+                failed_generation = Some(generation);
+                ProcessingState::Failed
+            };
+            let _ = status.set_for_generation(generation, state);
+            let _ = request.complete.send(ready);
+            continue;
+        }
         let Some(packet) = lane.input.pop() else {
             thread::sleep(Duration::from_millis(1));
             continue;
@@ -171,8 +256,8 @@ fn run<R: Renderer>(
                 continue;
             }
             let _ = status.set_for_generation(generation, ProcessingState::Loading);
-            // AudioConfig has no channel count. The first packet chooses batch
-            // one or two; a later layout change retires the old sessions here.
+            // Adapters without a prepared layout choose batch one or two from
+            // the first packet. A later layout change retires old sessions here.
             drop(stream.take());
             let prepared = prepare(&mut load, packet.channels, sample_rate, geometry);
             if lane.stop.load(Ordering::Acquire) {

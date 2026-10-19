@@ -172,6 +172,15 @@ static void au_v2_lifecycle_leave(TruceAUv2 **inst) {
 #define AU_V2_LIFECYCLE_GUARD(inst) ((void)0)
 #endif
 
+// Private AUv2 preparation bridge. The shared AuCallbacks ABI remains unchanged.
+typedef void (*TruceAUPrepareWithMainBusChannels)(void *, double, uint32_t, uint32_t, uint32_t);
+static TruceAUPrepareWithMainBusChannels g_prepare_with_main_bus_channels = NULL;
+
+__attribute__((visibility("hidden")))
+void truce_au_v2_set_prepare_with_main_bus_channels(TruceAUPrepareWithMainBusChannels callback) {
+    g_prepare_with_main_bus_channels = callback;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -487,6 +496,16 @@ static OSStatus au_v2_close(void *self_) {
 // Initialize / Uninitialize / Reset
 // ---------------------------------------------------------------------------
 
+static void au_v2_reset_with_layout(TruceAUv2 *inst, uint32_t numIn, uint32_t numOut) {
+    if (!g_callbacks || !inst->rustCtx) return;
+    if (g_prepare_with_main_bus_channels) {
+        g_prepare_with_main_bus_channels(inst->rustCtx, inst->sampleRate,
+                                         inst->maxFramesPerSlice, numIn, numOut);
+    } else {
+        g_callbacks->reset(inst->rustCtx, inst->sampleRate, inst->maxFramesPerSlice);
+    }
+}
+
 static OSStatus au_v2_initialize(void *self_) {
     TruceAUv2 *inst = (TruceAUv2 *)self_;
     AU_V2_LIFECYCLE_GUARD(inst);
@@ -499,8 +518,7 @@ static OSStatus au_v2_initialize(void *self_) {
     if (!layout_pair_supported(numIn, numOut))
         return kAudioUnitErr_FormatNotSupported;
 
-    if (g_callbacks && inst->rustCtx)
-        g_callbacks->reset(inst->rustCtx, inst->sampleRate, inst->maxFramesPerSlice);
+    au_v2_reset_with_layout(inst, numIn, numOut);
 
     // Allocate internal buffers for the negotiated channel count (a
     // multi-layout plugin may run at any declared width, not just the
@@ -534,8 +552,11 @@ static OSStatus au_v2_reset(void *self_, AudioUnitScope scope, AudioUnitElement 
     (void)scope; (void)elem;
     TruceAUv2 *inst = (TruceAUv2 *)self_;
     AU_V2_LIFECYCLE_GUARD(inst);
-    if (g_callbacks && inst->rustCtx)
-        g_callbacks->reset(inst->rustCtx, inst->sampleRate, inst->maxFramesPerSlice);
+    uint32_t numOut = inst->outputFormat.mChannelsPerFrame;
+    uint32_t numIn = g_descriptor->num_inputs > 0 ? inst->inputFormat.mChannelsPerFrame : 0;
+    if (!layout_pair_supported(numIn, numOut))
+        return kAudioUnitErr_FormatNotSupported;
+    au_v2_reset_with_layout(inst, numIn, numOut);
     inst->midiCount = 0;
     return noErr;
 }

@@ -362,7 +362,7 @@ fn full_input_queue_waits_without_losing_audio_or_its_original_pitch_timestamp()
 fn unsupported_rate_is_silent_and_clears_previous_latency() {
     let params = RevoxParams::default();
     let mut state = prepared(&params, 256, |_| Ok(Double));
-    state.reset(&params, 22_050.0);
+    state.reset(&params, 22_050.0, None);
     assert_eq!(state.latency_samples(), 0);
     assert_eq!(params.status.state(), ProcessingState::UnsupportedRate);
     assert_realtime_clean(|| {

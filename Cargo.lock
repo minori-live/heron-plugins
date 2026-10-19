@@ -3070,8 +3070,6 @@ dependencies = [
 [[package]]
 name = "truce-core"
 version = "6.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ecd892fb0f82fdfbf801b4aab7f443f3c51deac572366b8bebfbda49117f1df"
 dependencies = [
  "backtrace",
  "crossbeam-queue",

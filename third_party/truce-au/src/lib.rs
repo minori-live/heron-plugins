@@ -532,6 +532,39 @@ unsafe extern "C" fn cb_reset<P: PluginExport>(
     sample_rate: f64,
     max_frames: u32,
 ) {
+    // SAFETY: the format callback supplies this instance's live context.
+    unsafe { reset_with_main_bus_channels::<P>(ctx, sample_rate, max_frames, None) };
+}
+
+// Private AUv2 bridge; the public AuCallbacks table and AUv3 ABI stay unchanged.
+#[cfg(target_os = "macos")]
+unsafe extern "C" fn cb_prepare_with_main_bus_channels<P: PluginExport>(
+    ctx: *mut std::ffi::c_void,
+    sample_rate: f64,
+    max_frames: u32,
+    input_channels: u32,
+    output_channels: u32,
+) {
+    // SAFETY: AUv2 owns the instance and serializes this preparation with render.
+    unsafe {
+        reset_with_main_bus_channels::<P>(
+            ctx,
+            sample_rate,
+            max_frames,
+            Some((input_channels, output_channels)),
+        );
+    }
+}
+
+/// # Safety
+/// `ctx` must identify a live `AuInstance<P>` whose audio and plugin state are
+/// exclusively owned by this preparation call.
+unsafe fn reset_with_main_bus_channels<P: PluginExport>(
+    ctx: *mut std::ffi::c_void,
+    sample_rate: f64,
+    max_frames: u32,
+    main_bus_channels: Option<(u32, u32)>,
+) {
     // Author `reset` runs here; firewall it so a panic can't unwind across
     // the C ABI.
     run_extern_callback_with::<P, ()>("au", "reset", (), || unsafe {
@@ -553,9 +586,13 @@ unsafe extern "C" fn cb_reset<P: PluginExport>(
         // (re)initializes. Prepares the plugin for the render mode the
         // host is about to drive.
         let mode = ProcessMode::from_u8(inst.render_mode.load(Ordering::Relaxed));
+        let mut config = AudioConfig::new(sample_rate, max_frames).with_process_mode(mode);
+        if let Some((input, output)) = main_bus_channels {
+            config = config.with_main_bus_channels(input, output);
+        }
         {
             let mut plugin = enter_plugin(&inst.plugin);
-            plugin.reset(&AudioConfig::new(sample_rate, max_frames).with_process_mode(mode));
+            plugin.reset(&config);
             inst.latency_cache
                 .store(plugin.latency(), Ordering::Relaxed);
             inst.tail_cache.store(plugin.tail(), Ordering::Relaxed);
@@ -2065,6 +2102,9 @@ unsafe extern "C" {
 // goes through the parameter tree directly.
 #[cfg(target_os = "macos")]
 unsafe extern "C" {
+    fn truce_au_v2_set_prepare_with_main_bus_channels(
+        callback: unsafe extern "C" fn(*mut std::ffi::c_void, f64, u32, u32, u32),
+    );
     fn truce_au_v2_host_set_param(ctx: *mut std::ffi::c_void, param_id: u32, value: f32);
     fn truce_au_v2_host_begin_param_gesture(ctx: *mut std::ffi::c_void, param_id: u32);
     fn truce_au_v2_host_end_param_gesture(ctx: *mut std::ffi::c_void, param_id: u32);
@@ -2342,6 +2382,8 @@ fn register_au_inner<P: PluginExport>(num_inputs: u32, num_outputs: u32) {
     let param_descs = param_descs.leak();
 
     unsafe {
+        #[cfg(target_os = "macos")]
+        truce_au_v2_set_prepare_with_main_bus_channels(cb_prepare_with_main_bus_channels::<P>);
         ffi::truce_au_register_v2(
             std::ptr::from_ref::<AuPluginDescriptor>(descriptor),
             std::ptr::from_ref::<AuCallbacks>(callbacks),
