@@ -82,7 +82,7 @@ mise run ci:coverage
 
 `mise run check` is the full local validation path: suite version consistency,
 Oxfmt, Oxlint, strict TypeScript and script tests, Rust fmt, cargo-shear,
-all-target workspace Clippy, workspace tests and five separate plug-in
+all-target workspace Clippy, workspace tests and six separate plug-in
 `rt-paranoid` test runs. `mise run check-fast` runs Rust formatting, all-target
 Clippy and workspace tests; it omits JavaScript and the separate paranoid runs.
 CI runs source checks once on Linux and uses coverage for each platform's Rust
@@ -357,7 +357,7 @@ After extraction, the native VST3 probe renders a four-second 220 Hz harmonic
 signal with +3 semitones and +50 cents and requires the combined shift, finite
 samples and reported leading latency. macOS checks both slices and forced CPU
 fallback. AU builds also pass registration/version checks and `auval` alongside
-the other four components. These gates establish native inference behavior for
+the other five components. These gates establish native inference behavior for
 each produced archive; compilation alone is insufficient.
 
 Reset validation also renders real-time stereo silence followed by a harmonic

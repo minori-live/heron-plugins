@@ -1078,7 +1078,7 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "heron-eq"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "arboard",
  "baseview-truce",
@@ -1104,7 +1104,7 @@ dependencies = [
 
 [[package]]
 name = "heron-gain"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "criterion",
  "fearless_simd",
@@ -1120,7 +1120,7 @@ dependencies = [
 
 [[package]]
 name = "heron-iced-ui"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "iced_core",
  "iced_widget",
@@ -1128,7 +1128,7 @@ dependencies = [
 
 [[package]]
 name = "heron-metronome"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "heron-plugin-ui",
  "truce",
@@ -1141,7 +1141,7 @@ dependencies = [
 
 [[package]]
 name = "heron-plugin-dsp"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "criterion",
  "fearless_simd",
@@ -1152,7 +1152,7 @@ dependencies = [
 
 [[package]]
 name = "heron-plugin-ui"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "heron-iced-ui",
  "iced_widget",
@@ -1162,7 +1162,7 @@ dependencies = [
 
 [[package]]
 name = "heron-repitch"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "heron-plugin-ui",
  "heron-rubberband",
@@ -1177,7 +1177,7 @@ dependencies = [
 
 [[package]]
 name = "heron-revox"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "criterion",
  "crossbeam-queue",
@@ -1196,7 +1196,7 @@ dependencies = [
 
 [[package]]
 name = "heron-revox-dsp"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "criterion",
  "fearless_simd",
@@ -1213,7 +1213,7 @@ dependencies = [
 
 [[package]]
 name = "heron-rubberband"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "rubberband-sys",
  "rustfft",
@@ -1222,7 +1222,7 @@ dependencies = [
 
 [[package]]
 name = "heron-sine"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "heron-plugin-ui",
  "truce",

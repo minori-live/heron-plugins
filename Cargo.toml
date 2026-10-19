@@ -20,7 +20,7 @@ resolver = "3"
 ignored = ["truce-vst3", "truce-au", "truce-aax"]
 
 [workspace.package]
-version = "0.8.1"
+version = "0.9.0"
 edition = "2024"
 rust-version = "1.98"
 license = "GPL-3.0-only"

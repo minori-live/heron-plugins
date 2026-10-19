@@ -38,7 +38,7 @@ signing.
 After archiving, the runtime ZIP is unpacked and verified. Every VST3 bundle's
 actual factory must expose the expected fixed class ID. Revox additionally runs
 actual embedded-model pitch-shift rendering from the extracted bundle on every
-platform and both macOS slices, including forced CPU fallback on macOS. All five AU components
+platform and both macOS slices, including forced CPU fallback on macOS. All six AU components
 must have unique per-plugin Objective-C editor/container classes in both final
 Mach-O slices. They are registered together, checked for identity/version and instantiated, then
 `auval` must succeed under both arm64 and Rosetta x86_64. Validation restores any
@@ -51,7 +51,7 @@ AU validation copies each complete bundle outside the scanned Components folder,
 then atomically installs it and updates the Components directory timestamp.
 [Apple documents that directory timestamp changes refresh the cached registry](https://developer.apple.com/library/archive/documentation/MusicAudio/Conceptual/AudioUnitProgrammingGuide/AudioUnitDevelopmentFundamentals/AudioUnitDevelopmentFundamentals.html).
 Fresh probe processes allow up to 30 seconds for missing registrations; duplicate
-identities, wrong versions and instance failures fail immediately. All five
+identities, wrong versions and instance failures fail immediately. All six
 instances must remain alive together before each architecture's `auval` checks.
 Restoration also updates the directory timestamp. Validation preserves prior
 installations and never deletes the user's global AU caches. Use a clean local
@@ -72,7 +72,7 @@ probes exercise the shipped runtime. `REVOX_PYTHON` can select the build Python
 executable explicitly; otherwise it uses `python` on Windows and `python3` on macOS.
 The source build's dependencies remain pinned by upstream's release CMake files.
 Model, runtime, license or native inference failures stop the build; they cannot
-produce an archive containing only the other four plug-ins.
+produce an archive containing only the other five plug-ins.
 
 ## Apple release credentials
 
