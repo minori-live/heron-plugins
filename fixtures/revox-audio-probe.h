@@ -25,7 +25,7 @@ inline float input_sample(size_t position) noexcept {
 }
 
 inline void verify_audio(const std::vector<float>& output, uint32_t latency, const char* format) {
-    require(latency == 71'168, "packaged latency differs from 1480 ms + 128 samples");
+    require(latency == 63'488, "packaged latency differs from 1160 ms lookahead + 160 ms wet buffer + 128 samples");
     require(output.size() >= size_t(latency) + 48'000, "packaged audio is too short to inspect");
     require(std::all_of(output.begin(), output.end(), [](float value) { return std::isfinite(value); }),
             "packaged Revox produced non-finite audio");

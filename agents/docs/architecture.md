@@ -303,17 +303,25 @@ warm-up. Stereo channels from the same window share a single batched inference;
 features, pitch, noise and reconstructed audio remain independent for each
 channel. No channels are summed, and no later time window is accumulated to
 assemble a batch. The frame step, context and reported latency are unchanged.
-Truce's reset configuration has no channel count, so the worker waits for the
-first audio packet to select and warm up exactly one pair of sessions. A change
-between mono and stereo retires those sessions on the worker and prepares the
-new shape. The callback starts a fresh delayed region and discards old-layout
-input and wet output; it also drains stale output during this new region's
-preroll so short layout changes cannot fill both queues and stall an audio
-callback.
+The vendored AUv2 adapter supplies its validated main-bus widths through
+`AudioConfig::main_bus_channels` during Initialize and Reset. Revox sends the
+known layout to its worker through a bounded preparation control channel and
+waits on the calling control thread until the worker publishes Ready or Failed.
+Model loading and warm-up finish before AU initialization returns, preparing
+exactly one mono or stereo pair of sessions. The first audio packet reuses those
+sessions. Formats whose reset configuration does not supply negotiated widths
+retain the deferred path: their first audio packet selects and warms up the
+worker's sessions. A change between mono and stereo retires the previous batch
+on the worker and prepares the new shape. The callback starts a fresh delayed
+region and discards old-layout input and wet output; it also drains stale output
+during this new region's preroll so short layout changes cannot fill both queues
+and stall an audio callback.
 
 A same-rate host reset advances the processing generation and retains a live
-worker. If the next packet has the same channel layout, its loaded model sessions
-remain available without repeated preparation or warm-up. The new generation
+worker. If the known or next-packet layout matches its loaded model sessions,
+those sessions remain available without repeated preparation or warm-up. A
+matching prepared layout takes an allocation-free reset path; a changed known
+layout waits for its worker preparation before reset returns. The new generation
 resets the input/output timeline, overlap, accepted pitch, source phase and noise
 position. Old-generation input and output are retired, and an old-generation
 output publisher stops waiting for queue space so the worker can consume new
@@ -321,10 +329,28 @@ input. A changed channel layout prepares new sessions on that worker; a changed
 sample rate or reset of a genuinely failed worker replaces the worker and repeats
 model preparation off the audio callback.
 
-The host receives a constant latency of 1.48 seconds plus 128 host samples,
-including a 320 ms inference allowance. This first version targets track
-processing, not low-latency live monitoring. The callback sends/receives fixed
-128-frame stereo packets through two preallocated 2048-packet queues. Packets
+Revox's AUv2 dependency enables the vendored Truce adapter's
+`serialize-lifecycle` feature. A per-instance gate serializes native render with
+Initialize, Uninitialize, Reset and Close, covering native buffers as well as
+Rust DSP state. A host reset waits for an active render to finish before changing
+the processing generation. It remains on its calling thread; the adapter does
+not defer allocation or model teardown into a later process block. This prevents
+a playback-start reset from clearing the timeline beneath a callback that is
+waiting for old-generation output. The gate follows Revox's explicit waiting
+contract. Other components' per-plugin release builds leave the feature disabled.
+See the [patch provenance](../../third_party/truce-au/PATCHES.md).
+
+The host receives the constant input-to-output sample offset: host-rate context,
+hop and overlap together require 1.16 seconds of future input, the output FIFO
+uses a fixed one-hop (160 ms) wet prefill, and the input queue adds one 128-sample
+packet buffer. Wet output is held until its delayed source timestamp, allowing
+the worker to synthesize following hops while callbacks advance through buffered
+audio. The packet buffer covers every hop's queue alignment, including rates
+whose hop is not a multiple of 128. No measured inference time enters the delay
+calculation: slow inference extends a callback without changing the sample
+offset. This first version targets track processing, not low-latency live
+monitoring. The callback sends/receives fixed 128-frame stereo packets through
+two preallocated 2048-packet queues. Packets
 carry a processing generation and absolute input sample positions; stale output
 is discarded, future output is held until its matching delayed position, and
 current-generation input is never dropped. Pitch settings are captured with input
@@ -349,7 +375,7 @@ and join the previous worker off the realtime callback.
 Truce 6.3 prepares DSP at VST3 activation, so the initial latency query must follow
 `setActive(true)`. Heron's VST3 host already uses that order; hosts that only query
 before activation are not covered by this development validation. The packaged
-audio probe follows activation, checks 71168 samples at 48 kHz and measures the
+audio probe follows activation, checks 63488 samples at 48 kHz and measures the
 combined pitch shift through the actual native binary.
 
 The editor reuses Heron EQ's shared rotary drawing, chrome and palette. Stable

@@ -23,6 +23,7 @@ pub struct RevoxDspState {
     latency: usize,
     sample_rate: f64,
     generation: u64,
+    prepared_channels: Option<usize>,
 }
 
 impl Default for RevoxDspState {
@@ -38,12 +39,18 @@ impl Default for RevoxDspState {
             latency: 0,
             sample_rate: 0.0,
             generation: 0,
+            prepared_channels: None,
         }
     }
 }
 
 impl RevoxDspState {
-    pub(crate) fn reset(&mut self, params: &RevoxParams, sample_rate: f64) {
+    pub(crate) fn reset(
+        &mut self,
+        params: &RevoxParams,
+        sample_rate: f64,
+        initial_channels: Option<usize>,
+    ) {
         let reuse = self.sample_rate == sample_rate
             && params.status.state() != ProcessingState::Failed
             && self.worker.as_ref().is_some_and(Worker::is_running)
@@ -51,9 +58,12 @@ impl RevoxDspState {
                 .lane
                 .as_ref()
                 .is_some_and(|lane| !lane.stop.load(Ordering::Acquire));
+        let already_prepared =
+            reuse && initial_channels.is_some() && initial_channels == self.prepared_channels;
         if !reuse {
             self.worker = None;
             self.lane = None;
+            self.prepared_channels = None;
         }
         self.position = 0;
         self.channels = 0;
@@ -63,19 +73,38 @@ impl RevoxDspState {
         self.sample_rate = sample_rate;
         let Some(geometry) = Geometry::new(sample_rate) else {
             self.latency = 0;
-            self.generation = params.status.configure(sample_rate, 0);
+            self.generation = params.status.configure(sample_rate, 0).0;
             params.status.set(ProcessingState::UnsupportedRate);
             return;
         };
         self.latency = geometry.latency;
-        self.generation = params.status.configure(sample_rate, self.latency as u32);
+        let (generation, previous_state) =
+            params.status.configure(sample_rate, self.latency as u32);
+        self.generation = generation;
         if reuse {
             if let Some(lane) = &self.lane {
                 lane.generation.store(self.generation, Ordering::Release);
             }
+            // The atomic generation transition must observe Ready. An old
+            // inference failure may otherwise retire its sessions after the
+            // earlier reuse check but before this reset advances generation.
+            if already_prepared && previous_state == ProcessingState::Ready {
+                params.status.set(ProcessingState::Ready);
+            } else if let (Some(worker), Some(channels)) = (&self.worker, initial_channels) {
+                worker.prepare_layout(channels, self.generation);
+                self.prepared_channels =
+                    (params.status.state() == ProcessingState::Ready).then_some(channels);
+            }
         } else {
-            self.worker = Worker::start(sample_rate, geometry, params.status.clone());
+            self.worker = Worker::start(
+                sample_rate,
+                geometry,
+                params.status.clone(),
+                initial_channels,
+            );
             self.lane = self.worker.as_ref().map(|worker| worker.lane.clone());
+            self.prepared_channels =
+                initial_channels.filter(|_| params.status.state() == ProcessingState::Ready);
         }
     }
 
@@ -106,6 +135,9 @@ impl RevoxDspState {
             return [0.0; 2];
         }
         if self.channels != channels {
+            if self.prepared_channels != Some(channels) {
+                self.prepared_channels = None;
+            }
             if self.channels != 0 {
                 self.generation = params.status.begin_region();
                 if let Some(lane) = &self.lane {
@@ -226,3 +258,9 @@ mod tests;
 
 #[cfg(test)]
 mod reset_tests;
+
+#[cfg(test)]
+mod latency_tests;
+
+#[cfg(test)]
+mod preparation_tests;

@@ -78,6 +78,8 @@ lto = "thin"
 debug = 2
 
 [patch.crates-io]
+truce-au = { path = "third_party/truce-au" }
+truce-core = { path = "third_party/truce-core" }
 baseview-truce = { path = "third_party/baseview-truce" }
 truce-gui = { path = "third_party/truce-gui" }
 truce-iced = { path = "third_party/truce-iced" }

@@ -20,7 +20,7 @@ rt-paranoid = ["truce/rt-paranoid"]
 truce.workspace = true
 truce-iced.workspace = true
 truce-vst3 = { workspace = true, optional = true }
-truce-au = { workspace = true, optional = true }
+truce-au = { workspace = true, optional = true, features = ["serialize-lifecycle"] }
 truce-aax = { workspace = true, optional = true }
 heron-plugin-ui.workspace = true
 heron-revox-dsp.workspace = true

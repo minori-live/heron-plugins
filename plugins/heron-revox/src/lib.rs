@@ -27,7 +27,10 @@ impl PluginLogic for HeronRevox {
     }
 
     fn reset(state: &mut RevoxDspState, params: &RevoxParams, config: &AudioConfig) {
-        state.reset(params, config.sample_rate);
+        let channels = config
+            .main_bus_channels
+            .map(|(input, output)| input.min(output) as usize);
+        state.reset(params, config.sample_rate, channels);
     }
 
     fn latency(state: &RevoxDspState) -> u32 {

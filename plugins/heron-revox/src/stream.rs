@@ -26,12 +26,20 @@ impl Geometry {
         let samples = |model_samples: usize| {
             (model_samples as f64 * sample_rate / MODEL_RATE).round() as usize
         };
+        let context = samples(PLUGIN_CONTEXT_SAMPLES);
+        let hop = samples(PLUGIN_HOP_SAMPLES);
+        let overlap = samples(PLUGIN_OVERLAP_SAMPLES);
+        let required_future = context + hop + overlap;
+        let wet_prefill = hop;
         Some(Self {
-            context: samples(PLUGIN_CONTEXT_SAMPLES),
-            hop: samples(PLUGIN_HOP_SAMPLES),
-            overlap: samples(PLUGIN_OVERLAP_SAMPLES),
-            // 1.16 s of future input plus 320 ms inference scheduling allowance.
-            latency: (1.48 * sample_rate).round() as usize + crate::worker::PACKET_FRAMES,
+            context,
+            hop,
+            overlap,
+            // Retain one processed hop in the output timeline so the worker can
+            // synthesize the next hop while callbacks advance through wet audio.
+            // The input packet covers every hop's queue alignment at every rate.
+            // These are actual sample buffers, independent of inference time.
+            latency: required_future + wet_prefill + crate::worker::PACKET_FRAMES,
         })
     }
 
